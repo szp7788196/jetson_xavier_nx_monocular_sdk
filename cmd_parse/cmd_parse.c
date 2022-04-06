@@ -191,7 +191,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                     break;
 
                     default:
-                        fprintf(stderr, "Baudrate1 '%s' unknown\n", optarg);
+                        fprintf(stderr, "%s: Baudrate1 '%s' unknown\n",__func__, optarg);
                         res = 0;
                     break;
                 }
@@ -217,7 +217,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 }
                 else
                 {
-                    fprintf(stderr, "Databits1 '%s' unknown\n", optarg);
+                    fprintf(stderr, "%s: Databits1 '%s' unknown\n",__func__, optarg);
                     res = 0;
                 }
             break;
@@ -233,7 +233,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 }
                 else
                 {
-                    fprintf(stderr, "Stopbits1 '%s' unknown\n", optarg);
+                    fprintf(stderr, "%s: Stopbits1 '%s' unknown\n",__func__, optarg);
                     res = 0;
                 }
             break;
@@ -243,7 +243,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 args->parity1 = SerialGetParity(optarg, &i);
                 if(!i)
                 {
-                    fprintf(stderr, "Parity1 '%s' unknown\n", optarg);
+                    fprintf(stderr, "%s: Parity1 '%s' unknown\n",__func__, optarg);
                     res = 0;
                 }
             break;
@@ -253,7 +253,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 args->protocol1 = SerialGetProtocol(optarg, &i);
                 if(!i)
                 {
-                    fprintf(stderr, "Protocol1 '%s' unknown\n", optarg);
+                    fprintf(stderr, "%s: Protocol1 '%s' unknown\n",__func__, optarg);
                     res = 0;
                 }
             break;
@@ -329,7 +329,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                     break;
 
                     default:
-                        fprintf(stderr, "Baudrate2 '%s' unknown\n", optarg);
+                        fprintf(stderr, "%s: Baudrate2 '%s' unknown\n",__func__, optarg);
                         res = 0;
                     break;
                 }
@@ -355,7 +355,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 }
                 else
                 {
-                    fprintf(stderr, "Databits2 '%s' unknown\n", optarg);
+                    fprintf(stderr, "%s: Databits2 '%s' unknown\n",__func__, optarg);
                     res = 0;
                 }
             break;
@@ -371,7 +371,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 }
                 else
                 {
-                    fprintf(stderr, "Stopbits2 '%s' unknown\n", optarg);
+                    fprintf(stderr, "%s: Stopbits2 '%s' unknown\n",__func__, optarg);
                     res = 0;
                 }
             break;
@@ -381,7 +381,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 args->parity2 = SerialGetParity(optarg, &i);
                 if(!i)
                 {
-                    fprintf(stderr, "Parity2 '%s' unknown\n", optarg);
+                    fprintf(stderr, "%s: Parity2 '%s' unknown\n",__func__, optarg);
                     res = 0;
                 }
             break;
@@ -391,7 +391,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 args->protocol2 = SerialGetProtocol(optarg, &i);
                 if(!i)
                 {
-                    fprintf(stderr, "Protocol2 '%s' unknown\n", optarg);
+                    fprintf(stderr, "%s: Protocol2 '%s' unknown\n",__func__, optarg);
                     res = 0;
                 }
             break;
@@ -467,7 +467,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                     break;
 
                     default:
-                        fprintf(stderr, "Baudrate3 '%s' unknown\n", optarg);
+                        fprintf(stderr, "%s: Baudrate3 '%s' unknown\n",__func__, optarg);
                         res = 0;
                     break;
                 }
@@ -493,7 +493,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 }
                 else
                 {
-                    fprintf(stderr, "Databits3 '%s' unknown\n", optarg);
+                    fprintf(stderr, "%s: Databits3 '%s' unknown\n",__func__, optarg);
                     res = 0;
                 }
             break;
@@ -509,7 +509,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 }
                 else
                 {
-                    fprintf(stderr, "Stopbits3 '%s' unknown\n", optarg);
+                    fprintf(stderr, "%s: Stopbits3 '%s' unknown\n",__func__, optarg);
                     res = 0;
                 }
             break;
@@ -519,7 +519,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 args->parity3 = SerialGetParity(optarg, &i);
                 if(!i)
                 {
-                    fprintf(stderr, "Parity3 '%s' unknown\n", optarg);
+                    fprintf(stderr, "%s: Parity3 '%s' unknown\n",__func__, optarg);
                     res = 0;
                 }
             break;
@@ -529,7 +529,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 args->protocol2 = SerialGetProtocol(optarg, &i);
                 if(!i)
                 {
-                    fprintf(stderr, "Protocol2 '%s' unknown\n", optarg);
+                    fprintf(stderr, "%s: Protocol2 '%s' unknown\n",__func__, optarg);
                     res = 0;
                 }
             break;

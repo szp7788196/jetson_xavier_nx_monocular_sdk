@@ -18,14 +18,14 @@ void *thread_mpu9250(void *arg)
 	fd = open("/dev/mpu9250", O_RDWR);
 	if(0 > fd) 
     {
-        fprintf(stderr, "thread_mpu9250: open /dev/mpu9250 failed\n");
+        fprintf(stderr, "%s: open /dev/mpu9250 failed\n",__func__);
 		goto THREAD_EXIT;
 	}
 
     ret = ioctl(fd,IOC_W_MPU9250_CONFIG,&config);
     if(ret < 0)
     {
-        fprintf(stderr, "thread_mpu9250: ioctl operate failed\n");
+        fprintf(stderr, "%s: ioctl operate failed\n",__func__);
     }
 
     while(1)
@@ -33,7 +33,7 @@ void *thread_mpu9250(void *arg)
         ret = read(fd, &mpu9250SampleData, sizeof(struct Mpu9250SampleData));
         if(ret < 0)
         {
-            printf("read mpu9250 failed\n");
+            fprintf(stderr, "%s: read mpu9250 failed\n",__func__);
         }
         else
         {

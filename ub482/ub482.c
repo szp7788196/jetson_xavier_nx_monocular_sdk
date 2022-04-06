@@ -29,7 +29,7 @@ static int ub482_send_config_cmd(struct Serial *sn,
 
 	memset(result_buf,0,64);
 
-    printf("thread_ub482: cmd:%s\r\n",cmd);
+    fprintf(stdout,"%s: cmd:%s\n",__func__,cmd);
 
     SerialWrite(sn, cmd, strlen((const char *)cmd));
 
@@ -49,7 +49,7 @@ static int ub482_send_config_cmd(struct Serial *sn,
 
 		if(flag_ok > 0)
 		{
-			printf("thread_ub482: cmd_rsp:%s\r\n",result_buf);
+			fprintf(stdout,"%s: cmd_rsp:%s\n",__func__,result_buf);
 
 			flag_ok = 0;
 
@@ -72,7 +72,7 @@ static int ub482_send_config_cmd(struct Serial *sn,
 
 			if(retry_num > 0 && retry_num < retry + 1)
 			{
-				printf("thread_ub482: retry cmd:\r\n%s",cmd);
+				fprintf(stderr,"%s: retry cmd:\n%s",__func__,cmd);
 
                 SerialWrite(sn, cmd, strlen((const char *)cmd));
 			}
@@ -202,7 +202,7 @@ static int ub482_serial_init(struct CmdArgs *args)
                      args->databits1,1);
     if(ret)
     {
-        fprintf(stderr, "thread_ub482: open %s failed\n",args->serial1);
+        fprintf(stderr, "%s: open %s failed\n",__func__,args->serial1);
 
         sleep(5);
 
@@ -219,7 +219,7 @@ static int ub482_serial_init(struct CmdArgs *args)
                      args->databits2,1);
     if(ret)
     {
-        fprintf(stderr, "thread_ub482: open %s failed\n",args->serial2);
+        fprintf(stderr, "%s: open %s failed\n",__func__,args->serial2);
 
         sleep(5);
 
@@ -237,7 +237,7 @@ static int recvNtripDataMsgAndWriteToUb482(void)
 
     if(ntripDataMsgId == -1)
     {
-        fprintf(stderr, "thread_ub482: no ntripDataMsgId queue\n");
+        fprintf(stderr, "%s: no ntripDataMsgId queue\n",__func__);
         return -1;
     }
 
@@ -247,12 +247,12 @@ static int recvNtripDataMsgAndWriteToUb482(void)
         return -1;
     }
 
-    fprintf(stderr, "thread_ub482: revc ntripDataMsg queue\n");
+    fprintf(stdout, "%s: revc ntripDataMsg queue\n",__func__);
 
     msg = &ntripDataMsg.mtext[2];
     msg_len = ((((unsigned short)ntripDataMsg.mtext[0]) << 8) & 0xFF00) + 
               ((unsigned short)ntripDataMsg.mtext[1] & 0x00FF);
-    printf("msg_len = %d\n",msg_len);
+    fprintf(stdout,"%s: msg_len = %d\n",__func__,msg_len);
 
     ret = SerialWrite(&serialSet, msg, msg_len);
 
@@ -371,7 +371,7 @@ static void getBestPositionData(char *msg, int msg_len)
     
     msg += (pos + 1);
 
-    printf("msg:%s",msg);
+    fprintf(stdout,"%s: msg:%s",__func__,msg);
 
     memset(buf,0,32);
     get_str1((unsigned char *)msg, (unsigned char *)",", 1, (unsigned char *)",", 2, (unsigned char *)buf);
@@ -443,7 +443,7 @@ static void getBestVelocityData(char *msg, int msg_len)
     
     msg += (pos + 1);
 
-    printf("msg:%s",msg);
+    fprintf(stdout,"%s: msg:%s",__func__,msg);
 
     get_str1((unsigned char *)msg, (unsigned char *)",", 1, (unsigned char *)",", 2, (unsigned char *)buf);
     if(strlen(buf) == 0)
@@ -495,7 +495,7 @@ static void getBestAttitudeData(char *msg, int msg_len)
     
     msg += (pos + 1);
 
-    printf("msg:%s",msg);
+    fprintf(stdout,"%s: msg:%s",__func__,msg);
 
     get_str1((unsigned char *)msg, (unsigned char *)",", 1, (unsigned char *)",", 2, (unsigned char *)buf);
     if(strlen(buf) == 0)
@@ -557,7 +557,7 @@ void sendTimeStampMsgToThreadSync(void)
     ret = msgsnd(ub482TimeStampMsgId,&ub482TimeStampMsg,sizeof(ub482TimeStampMsg.mtext),0);
     if(ret == -1)
     {
-        fprintf(stderr, "thread_ub482: send ub482TimeStampMsg failed\n");
+        fprintf(stderr, "%s: send ub482TimeStampMsg failed\n",__func__);
     }
 }
 
@@ -581,7 +581,7 @@ static int recvAndParseUb482GnssData(void)
             recv_buf[recv_len - 2] != '\r' || 
             recv_buf[recv_len - 1] != '\n')
         {
-            fprintf(stderr, "thread_ub482: recv invalid data\n");
+            fprintf(stderr, "%s: recv invalid data\n",__func__);
             return -1;
         }
 
@@ -589,7 +589,7 @@ static int recvAndParseUb482GnssData(void)
 
         if(strlen(check_buf) != 2 && strlen(check_buf) != 8)
         {
-            fprintf(stderr, "thread_ub482: check num len error\n");
+            fprintf(stderr, "%s: check num len error\n",__func__);
             return -1;
         }
 
@@ -611,14 +611,14 @@ static int recvAndParseUb482GnssData(void)
             check_num_calc = CalCheckOr((unsigned char *)&recv_buf[1], recv_len - 6);
             if(check_num_recv != check_num_calc)
             {
-                fprintf(stderr, "thread_ub482: $GPGGA data check num error,recv is %d but calc is %d\n",
-                        check_num_recv,check_num_calc);
+                fprintf(stderr, "%s: $GPGGA data check num error,recv is %d but calc is %d\n",
+                        __func__,check_num_recv,check_num_calc);
                 return -1;
             }
 
             if(recv_len <= 26)
             {
-                fprintf(stderr, "thread_ub482: GPGGA data is null,GPGGA data len is %d,should more than 26\n",recv_len);
+                fprintf(stderr, "%s: GPGGA data is null,GPGGA data len is %d,should more than 26\n",__func__,recv_len);
                 return -1;
             }
 
@@ -634,11 +634,9 @@ static int recvAndParseUb482GnssData(void)
                 ret = msgsnd(ub482GpggaMsgId,&ub482GpggaMsg,sizeof(ub482GpggaMsg.mtext),0);
                 if(ret == -1)
                 {
-                    fprintf(stderr, "thread_ub482: send ub482GpggaMsg failed\n");
+                    fprintf(stderr, "%s: send ub482GpggaMsg failed\n",__func__);
                     return -1;
                 }
-
-//                fprintf(stderr, "thread_ub482: msgsnd ub482GpggaMsg\n");
             }
         }
         else
@@ -646,7 +644,7 @@ static int recvAndParseUb482GnssData(void)
             check_num_calc = CRC32((unsigned char *)&recv_buf[1], recv_len - 12);
             if(check_num_recv != check_num_calc)
             {
-                fprintf(stderr, "thread_ub482: other data check num error\n");
+                fprintf(stderr, "%s: other data check num error\n",__func__);
                 return -1;
             }
 
@@ -693,7 +691,7 @@ static int recvAndParseUb482GnssData(void)
             }
             else
             {
-                fprintf(stderr, "thread_ub482: invalid data frame\n");
+                fprintf(stderr, "%s: invalid data frame\n",__func__);
                 return -1;
             }
         }
@@ -711,17 +709,17 @@ static void ub482CreateMsgQueue(void)
     ub482GpggaMsgId = msgget((key_t)KEY_UB482_GPGGA_MSG, IPC_CREAT | 0777);
     if(ub482GpggaMsgId == -1)
     {
-        fprintf(stderr, "thread_ub482: create ub482GpggaMsg failed\n");
+        fprintf(stderr, "%s: create ub482GpggaMsg failed\n",__func__);
     }
     ntripDataMsgId = msgget((key_t)KEY_NTRIP_MSG, IPC_CREAT | 0777);
     if(ntripDataMsgId == -1)
     {
-        fprintf(stderr, "thread_ub482: create ntripDataMsg failed\n");
+        fprintf(stderr, "%s: create ntripDataMsg failed\n",__func__);
     }
     ub482TimeStampMsgId = msgget((key_t)KEY_UB482_TIME_STAMP_MSG, IPC_CREAT | 0777);
     if(ub482TimeStampMsgId == -1)
     {
-        fprintf(stderr, "thread_ub482: create ub482TimeStampMsg failed\n");
+        fprintf(stderr, "%s: create ub482TimeStampMsg failed\n",__func__);
     }
 
     memset(&ub482GpggaMsg,0,sizeof(struct QueueMsgGpgga));
@@ -745,7 +743,7 @@ void *thread_ub482(void *arg)
     ret = ub482_config_init(args->baudrate2);       //配置ub482
     if(ret)
     {
-        fprintf(stderr, "thread_ub482: ub482 config init failed\n");
+        fprintf(stderr, "%s: ub482 config init failed\n",__func__);
     }
 
     while(1)

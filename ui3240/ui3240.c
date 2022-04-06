@@ -52,7 +52,7 @@ static int gpioPwmConfig(HIDS hCam, double frame_rate, bool active)
     is_err = is_IO(hCam, IS_IO_CMD_PWM_SET_PARAMS,(void*)&m_pwmParams, sizeof(m_pwmParams));
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "pwm not set,error code is %d\n",is_err);
+        fprintf(stderr, "%s: pwm not set,error code is %d\n",__func__,is_err);
     }
 
     return is_err;
@@ -72,7 +72,7 @@ static int gpioInputConfig(HIDS hCam)
     is_err = is_IO(hCam, IS_IO_CMD_GPIOS_SET_CONFIGURATION, (void*)&gpioConfiguration,sizeof(gpioConfiguration));
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "GPIO1 config not done,error code is %d\n",is_err);
+        fprintf(stderr, "%s: GPIO1 config not done,error code is %d\n",__func__,is_err);
     }
 
     // // set configuration of GPIO2
@@ -82,7 +82,7 @@ static int gpioInputConfig(HIDS hCam)
     is_err = is_IO(hCam, IS_IO_CMD_GPIOS_SET_CONFIGURATION, (void*)&gpioConfiguration,sizeof(gpioConfiguration));
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "GPIO2 config not done,error code is %d\n",is_err);
+        fprintf(stderr, "%s: GPIO2 config not done,error code is %d\n",__func__,is_err);
     }
 
     return is_err;
@@ -106,34 +106,34 @@ static int setStandbyMode(void)
         is_err = gpioPwmConfig(cameraConfig.camera_handle, cameraConfig.frame_rate, false);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set GPIO2 as output (PWM),error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set GPIO2 as output (PWM),error code is %d\n",__func__,is_err);
             return is_err;
         }
 
         is_err = is_SetExternalTrigger(cameraConfig.camera_handle, IS_SET_TRIGGER_OFF);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not disable external trigger mode,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not disable external trigger mode,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
         is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_INIT, &init_event, sizeof(IS_INIT_EVENT));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not init frame event 1,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not init frame event 1,error code is %d\n",__func__,is_err);
         }
 
         is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_DISABLE, &event, sizeof(unsigned int));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not disable frame event 1,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not disable frame event 1,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
         is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_EXIT, &event, sizeof(unsigned int));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not exit frame event,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not exit frame event,error code is %d\n",__func__,is_err);
         }
 
         // documentation seems to suggest that this is needed to disable external trigger mode (to go into free-run mode)
@@ -142,48 +142,48 @@ static int setStandbyMode(void)
         is_err = is_StopLiveVideo(cameraConfig.camera_handle, IS_WAIT);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not stop live video mode,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not stop live video mode,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
-        fprintf(stderr, "Stopped external trigger mode\n");
+        fprintf(stderr, "%s: Stopped external trigger mode\n",__func__);
     }
     else if(freeRunModeActive())
     {
         is_err = is_IO(cameraConfig.camera_handle, IS_IO_CMD_FLASH_SET_MODE,(void*)&nMode, sizeof(nMode));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not disable flash output,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not disable flash output,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
         is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_INIT, &init_event, sizeof(IS_INIT_EVENT));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not init frame event 2,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not init frame event 2,error code is %d\n",__func__,is_err);
         }
 
         is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_DISABLE, &event, sizeof(unsigned int));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not disable frame event 2,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not disable frame event 2,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
         is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_EXIT, &event, sizeof(unsigned int));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not exit frame event,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not exit frame event,error code is %d\n",__func__,is_err);
         }
 
         is_err = is_StopLiveVideo(cameraConfig.camera_handle, IS_WAIT);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not stop live video mode,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not stop live video mode,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
-        fprintf(stderr, "Stopped free-run live video mode\n");
+        fprintf(stderr, "%s: Stopped free-run live video mode\n",__func__);
     }
     else if(softTriggerModeActive())
     {
@@ -193,7 +193,7 @@ static int setStandbyMode(void)
     is_err = is_CameraStatus(cameraConfig.camera_handle, IS_STANDBY, IS_GET_STATUS);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Could not set standby mode,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Could not set standby mode,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
@@ -211,14 +211,14 @@ static int connectCamrea(int camera_id)
     is_err = is_GetNumberOfCameras(&num_cameras);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed query for number of connected UEye cameras,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed query for number of connected UEye cameras,error code is %d\n",__func__,is_err);
         return is_err;
     }
     else
     {
         if(num_cameras < 1)
         {
-            fprintf(stderr, "No UEye cameras are connected\n");
+            fprintf(stderr, "%s: No UEye cameras are connected\n",__func__);
             return IS_NO_SUCCESS;
         }
     }
@@ -228,21 +228,21 @@ static int connectCamrea(int camera_id)
     is_err = is_InitCamera(&cameraConfig.camera_handle, NULL);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Could not open UEye camera ID %d\n",cameraConfig.camera_id);
+        fprintf(stderr, "%s: Could not open UEye camera ID %d\n",__func__,cameraConfig.camera_id);
         return is_err;
     }
 
     is_err = is_SetDisplayMode(cameraConfig.camera_handle, IS_SET_DM_DIB);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "does not support Device Independent Bitmap mode,error code is %d\n",is_err);
+        fprintf(stderr, "%s: does not support Device Independent Bitmap mode,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
     is_err = is_GetSensorInfo(cameraConfig.camera_handle, &cameraConfig.camera_sensor_info);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Could not poll sensor information,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Could not poll sensor information,error code is %d\n",__func__,is_err);
         return is_err;
     }
     
@@ -272,7 +272,7 @@ static int disconnectCamera(void)
                 is_err = is_FreeImageMem(cameraConfig.camera_handle, cameraConfig.frame_buf[i], cameraConfig.frame_buf_id[i]);
                 if(is_err != IS_SUCCESS)
                 {
-                    fprintf(stderr, "Failed to free frame_buf[%d]\n",i);
+                    fprintf(stderr, "%s: Failed to free frame_buf[%d]\n",__func__,i);
                 }
             }
 
@@ -299,12 +299,12 @@ static int disconnectCamera(void)
     is_err = is_ExitCamera(cameraConfig.camera_handle);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to release camera handle,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to release camera handle,error code is %d\n",__func__,is_err);
     }
 
     cameraConfig.camera_handle = (HIDS)0;
 
-    fprintf(stderr, "camera disconnected success\n");
+    fprintf(stderr, "%s: camera disconnected success\n",__func__);
   }
 
   return is_err;
@@ -322,7 +322,7 @@ static int loadCameraDefaultConfig(wchar_t *filename, bool ignore_load_failure)
     is_err = is_ParameterSet(cameraConfig.camera_handle, IS_PARAMETERSET_CMD_LOAD_FILE,filename, 0);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Could not load camera default parameters file,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Could not load camera default parameters file,error code is %d\n",__func__,is_err);
 
         if(ignore_load_failure)
         {
@@ -333,8 +333,8 @@ static int loadCameraDefaultConfig(wchar_t *filename, bool ignore_load_failure)
     }
     else
     {
-        fprintf(stderr, "========================= Congratulations!!! =========================\n");
-        fprintf(stderr, "Successfully loaded camera default parameter file\n");
+        fprintf(stdout, "%s: ========================= Congratulations!!! =========================\n",__func__);
+        fprintf(stdout, "%s: Successfully loaded camera default parameter file\n",__func__);
     }
 
     return is_err;
@@ -362,7 +362,7 @@ static int loadCameraUserConfig(char *filename)
     fp = fopen(filename, "rt");
     if(fp == NULL)
     {
-        fprintf(stderr, "Could not open camera user parameters file\n");
+        fprintf(stderr, "%s: Could not open camera user parameters file\n",__func__);
 		return IS_NO_SUCCESS;
     }
 
@@ -371,20 +371,20 @@ static int loadCameraUserConfig(char *filename)
     file_len = ftell(fp);
     if(file_len < 1)
     {
-        fprintf(stderr, "query camera user parameters file length failed\n");
+        fprintf(stderr, "%s: query camera user parameters file length failed\n",__func__);
 		return IS_NO_SUCCESS;
     }
 
     if(file_len > UI3240_MAX_USER_CONFIG_FILE_LEN || file_len < UI3240_MIN_USER_CONFIG_FILE_LEN)
     {
-        fprintf(stderr, "camera user parameters file length error\n");
+        fprintf(stderr, "%s: camera user parameters file length error\n",__func__);
 		return IS_NO_SUCCESS;
     }
 
     file_buf = (char *)malloc(sizeof(char) * (file_len + 1));
     if(file_buf == NULL)
     {
-        fprintf(stderr, "alloc user parameters file buf failed\n");
+        fprintf(stderr, "%s: alloc user parameters file buf failed\n",__func__);
 		return IS_NO_SUCCESS;
     }
 
@@ -401,7 +401,7 @@ static int loadCameraUserConfig(char *filename)
 
     if(strstr(file_buf, "start:") == NULL && strstr(file_buf, "end;") == NULL)
     {
-        fprintf(stderr, "camera user parameters file missing head or tail\n");
+        fprintf(stderr, "%s: camera user parameters file missing head or tail\n",__func__);
 		return IS_NO_SUCCESS;
     }
 
@@ -1136,7 +1136,7 @@ static int reallocateCameraBuffer(void)
                 is_err = is_FreeImageMem(cameraConfig.camera_handle, cameraConfig.frame_buf[i], cameraConfig.frame_buf_id[i]);
                 if(is_err != IS_SUCCESS)
                 {
-                    fprintf(stderr, "Failed to free frame_buf[%d]\n",i);
+                    fprintf(stderr, "%s: Failed to free frame_buf[%d]\n",__func__,i);
                 }
             }
 
@@ -1162,14 +1162,14 @@ static int reallocateCameraBuffer(void)
     cameraConfig.frame_buf = malloc(cameraConfig.frame_num * sizeof(char *));
     if(cameraConfig.frame_buf == NULL)
     {
-        fprintf(stderr, "Failed to malloc cameraConfig.frame_buf\n");
+        fprintf(stderr, "%s: Failed to malloc cameraConfig.frame_buf\n",__func__);
         return is_err;
     }
 
     cameraConfig.frame_buf_id = (int *)malloc(cameraConfig.frame_num * sizeof(int));
     if(cameraConfig.frame_buf_id == NULL)
     {
-        fprintf(stderr, "Failed to malloc cameraConfig.frame_buf_id\n");
+        fprintf(stderr, "%s: Failed to malloc cameraConfig.frame_buf_id\n",__func__);
         return is_err;
     }
 
@@ -1186,7 +1186,7 @@ static int reallocateCameraBuffer(void)
     is_err = is_ClearSequence(cameraConfig.camera_handle);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to clear sequence,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to clear sequence,error code is %d\n",__func__,is_err);
     }
 
     for(i = 0; i < cameraConfig.frame_num; i ++)
@@ -1197,21 +1197,21 @@ static int reallocateCameraBuffer(void)
                                   &cameraConfig.frame_buf_id[i]);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to allocate image buffer[%d]\n",i);
+            fprintf(stderr, "%s: Failed to allocate image buffer[%d]\n",__func__,i);
             return is_err;
         }
 
         is_err = is_SetImageMem(cameraConfig.camera_handle, cameraConfig.frame_buf[i], cameraConfig.frame_buf_id[i]);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to associate image buffer to IDS driver,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Failed to associate image buffer to IDS driver,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
         is_err = is_AddToSequence(cameraConfig.camera_handle, cameraConfig.frame_buf[i], cameraConfig.frame_buf_id[i]);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to add sequence image buffer,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Failed to add sequence image buffer,error code is %d\n",__func__,is_err);
             return is_err;
         }
     }
@@ -1220,7 +1220,7 @@ static int reallocateCameraBuffer(void)
     is_err = is_ImageQueue(cameraConfig.camera_handle, IS_IMAGE_QUEUE_CMD_INIT, NULL, 0);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to initialize image queue,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to initialize image queue,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
@@ -1228,7 +1228,7 @@ static int reallocateCameraBuffer(void)
     is_err = is_ImageQueue(cameraConfig.camera_handle, IS_IMAGE_QUEUE_CMD_FLUSH, NULL, 0);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to flush image queue,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to flush image queue,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
@@ -1238,14 +1238,14 @@ static int reallocateCameraBuffer(void)
     is_err = is_GetImageMemPitch(cameraConfig.camera_handle, &cam_buffer_pitch);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to query buffer step size / pitch / stride,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to query buffer step size / pitch / stride,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
     if(cam_buffer_pitch < frame_width)
     {
-        fprintf(stderr, "Frame buffer's queried step size is smaller than buffer's expected width\n");
-        fprintf(stderr, "(THIS IS A CODING ERROR, PLEASE CONTACT PACKAGE AUTHOR)\n");
+        fprintf(stderr, "%s: Frame buffer's queried step size is smaller than buffer's expected width\n",__func__);
+        fprintf(stderr, "%s: (THIS IS A CODING ERROR, PLEASE CONTACT PACKAGE AUTHOR)\n",__func__);
     }
 
     cameraConfig.frame_buf_size = cam_buffer_pitch * frame_height;
@@ -1255,7 +1255,7 @@ static int reallocateCameraBuffer(void)
         cameraConfig.image_buf.image = (char *)malloc(cameraConfig.frame_buf_size);
         if(cameraConfig.image_buf.image == NULL)
         {
-            fprintf(stderr, "alloc image buffer failed 1\n");
+            fprintf(stderr, "%s: alloc image buffer failed 1\n",__func__);
             return IS_NO_SUCCESS;
         }
 
@@ -1263,7 +1263,7 @@ static int reallocateCameraBuffer(void)
     }
     else
     {
-        fprintf(stderr, "alloc image buffer failed 2\n");
+        fprintf(stderr, "%s: alloc image buffer failed 2\n",__func__);
         return IS_NO_SUCCESS;
     }
 
@@ -1288,7 +1288,7 @@ static int setColorMode(char *mode)
         is_err = is_SetColorMode(cameraConfig.camera_handle, IS_CM_RGB8_PACKED);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set color mode to RGB8,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set color mode to RGB8,error code is %d\n",__func__,is_err);
             return is_err;
         }
     }
@@ -1297,7 +1297,7 @@ static int setColorMode(char *mode)
         is_err = is_SetColorMode(cameraConfig.camera_handle, IS_CM_BGR8_PACKED);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set color mode to BGR8,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set color mode to BGR8,error code is %d\n",__func__,is_err);
             return is_err;
         }
     }
@@ -1306,7 +1306,7 @@ static int setColorMode(char *mode)
         is_err = is_SetColorMode(cameraConfig.camera_handle, IS_CM_SENSOR_RAW8);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set color mode to BAYER_RGGB8,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set color mode to BAYER_RGGB8,error code is %d\n",__func__,is_err);
             return is_err;
         }
     }
@@ -1315,12 +1315,12 @@ static int setColorMode(char *mode)
         is_err = is_SetColorMode(cameraConfig.camera_handle, IS_CM_MONO8);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set color mode to MONO8,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set color mode to MONO8,error code is %d\n",__func__,is_err);
             return is_err;
         }
     }
 
-    fprintf(stderr, "Updated color mode to %s\n",mode);
+    fprintf(stdout, "%s: Updated color mode to %s\n",__func__,mode);
 
     return is_err;
 }
@@ -1341,16 +1341,16 @@ static int setResolution(unsigned short image_width, unsigned short image_height
 
     if(image_left >= 0 && (int)cameraConfig.camera_sensor_info.nMaxWidth - image_width - image_left < 0)
     {
-        fprintf(stderr, "Cannot set AOI left index to %d with a frame width of %d and sensor max width of %d\n",
-                image_left,image_width,cameraConfig.camera_sensor_info.nMaxWidth);
+        fprintf(stderr, "%s: Cannot set AOI left index to %d with a frame width of %d and sensor max width of %d\n",
+                __func__,image_left,image_width,cameraConfig.camera_sensor_info.nMaxWidth);
 
         image_left = -1;
     }
 
     if(image_top >= 0 && (int)cameraConfig.camera_sensor_info.nMaxHeight - image_height - image_top < 0)
     {
-        fprintf(stderr, "Cannot set AOI top index to %d with a frame height of %d and sensor max height of %d\n",
-                image_top,image_height,cameraConfig.camera_sensor_info.nMaxHeight);
+        fprintf(stderr, "%s: Cannot set AOI top index to %d with a frame height of %d and sensor max height of %d\n",
+                __func__,image_top,image_height,cameraConfig.camera_sensor_info.nMaxHeight);
 
         image_top = -1;
     }
@@ -1368,11 +1368,11 @@ static int setResolution(unsigned short image_width, unsigned short image_height
     is_err = is_AOI(cameraConfig.camera_handle, IS_AOI_IMAGE_SET_AOI, &camera_aio, sizeof(camera_aio));
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to set Area Of Interest (AOI),error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to set Area Of Interest (AOI),error code is %d\n",__func__,is_err);
         return is_err;
     }
 
-    fprintf(stderr, "Updated Area Of Interest (AOI)\n");
+    fprintf(stdout, "%s: Updated Area Of Interest (AOI)\n",__func__);
 
     return is_err;
 }
@@ -1419,7 +1419,7 @@ static int setSubsampling(int rate)
             rate = 1;
             rate_flag = IS_SUBSAMPLING_DISABLE;
 
-            fprintf(stderr, "currently has unsupported this subsampling rate,resetting to 1X\n");
+            fprintf(stderr, "%s: currently has unsupported this subsampling rate,resetting to 1X\n",__func__);
         break;
     }
 
@@ -1428,13 +1428,13 @@ static int setSubsampling(int rate)
         is_err = is_SetSubSampling(cameraConfig.camera_handle, rate_flag);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to set subsampling rate,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Failed to set subsampling rate,error code is %d\n",__func__,is_err);
             return is_err;
         }
     }
     else
     {
-        fprintf(stderr, "does not support requested sampling rate of %dX\n",rate);
+        fprintf(stderr, "%s: does not support requested sampling rate of %dX\n",__func__,rate);
 
         // Query current rate
         currRate = is_SetSubSampling(cameraConfig.camera_handle, IS_GET_SUBSAMPLING);
@@ -1460,12 +1460,12 @@ static int setSubsampling(int rate)
         }
         else
         {
-            fprintf(stderr, "currently has an unsupported sampling rate %dX,resetting to 1X\n",currRate);
+            fprintf(stderr, "%s: currently has an unsupported sampling rate %dX,resetting to 1X\n",__func__,currRate);
 
             is_err = is_SetBinning(cameraConfig.camera_handle, IS_SUBSAMPLING_DISABLE);
             if(is_err != IS_SUCCESS)
             {
-                fprintf(stderr, "Failed to set subsampling rate to 1X,error code is %d\n",is_err);
+                fprintf(stderr, "%s: Failed to set subsampling rate to 1X,error code is %d\n",__func__,is_err);
                 return is_err;
             }
         }
@@ -1473,7 +1473,7 @@ static int setSubsampling(int rate)
         return IS_SUCCESS;
     }
 
-    fprintf(stderr, "Updated subsampling rate to %dX\n",rate);
+    fprintf(stdout, "%s: Updated subsampling rate to %dX\n",__func__,rate);
 
     cameraConfig.subsampling = rate;
 
@@ -1522,7 +1522,7 @@ static int setBinning(int rate)
             rate = 1;
             rate_flag = IS_BINNING_DISABLE;
 
-            fprintf(stderr, "currently has unsupported binning rate: %dX,resetting to 1X\n",rate);
+            fprintf(stderr, "%s: currently has unsupported binning rate: %dX,resetting to 1X\n",__func__,rate);
         break;
     }
 
@@ -1531,13 +1531,13 @@ static int setBinning(int rate)
         is_err = is_SetBinning(cameraConfig.camera_handle, rate_flag);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set binning rate to %dX\n",rate);
+            fprintf(stderr, "%s: Could not set binning rate to %dX\n",__func__,rate);
             return is_err;
         }
     }
     else
     {
-        fprintf(stderr, "does not support requested binning rate of %dX\n",rate);
+        fprintf(stderr, "%s: does not support requested binning rate of %dX\n",__func__,rate);
 
         // Query current rate
         currRate = is_SetBinning(cameraConfig.camera_handle, IS_GET_BINNING);
@@ -1563,12 +1563,12 @@ static int setBinning(int rate)
         }
         else
         {
-            fprintf(stderr, "currently has an unsupported binning rate %dX,resetting to 1X\n",currRate);
+            fprintf(stderr, "%s: currently has an unsupported binning rate %dX,resetting to 1X\n",__func__,currRate);
 
             is_err = is_SetBinning(cameraConfig.camera_handle, IS_BINNING_DISABLE);
             if(is_err != IS_SUCCESS)
             {
-                fprintf(stderr, "Failed to set binning rate to 1X,error code is %d\n",is_err);
+                fprintf(stderr, "%s: Failed to set binning rate to 1X,error code is %d\n",__func__,is_err);
                 return is_err;
             }
         }
@@ -1576,7 +1576,7 @@ static int setBinning(int rate)
         return IS_SUCCESS;
     }
 
-    fprintf(stderr, "Updated binning rate to %dX\n",rate);
+    fprintf(stdout, "%s: Updated binning rate to %dX\n",__func__,rate);
 
     cameraConfig.binning = rate;
 
@@ -1602,7 +1602,7 @@ static int setSensorScaling(double rate)
         rate = 1.0;
         cameraConfig.sensor_scaling = 1.0;
 
-        fprintf(stderr, "does not support internal image scaling,error code is %d\n",is_err);
+        fprintf(stderr, "%s: does not support internal image scaling,error code is %d\n",__func__,is_err);
 
         return IS_SUCCESS;
     }
@@ -1611,7 +1611,7 @@ static int setSensorScaling(double rate)
         rate = 1.0;
         cameraConfig.sensor_scaling = 1.0;
 
-        fprintf(stderr, "Failed to obtain supported internal image scaling information,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to obtain supported internal image scaling information,error code is %d\n",__func__,is_err);
 
         return is_err;
     }
@@ -1621,8 +1621,8 @@ static int setSensorScaling(double rate)
         {
             rate = sensorScalerInfo.dblCurrFactor;
 
-            fprintf(stderr, "Requested internal image scaling rate of %f is not within supported range %f to %f\n",
-                    rate,sensorScalerInfo.dblMinFactor,sensorScalerInfo.dblMaxFactor);
+            fprintf(stderr, "%s: Requested internal image scaling rate of %f is not within supported range %f to %f\n",
+                    __func__,rate,sensorScalerInfo.dblMinFactor,sensorScalerInfo.dblMaxFactor);
 
             return IS_SUCCESS;
         }
@@ -1633,17 +1633,17 @@ static int setSensorScaling(double rate)
     {
         rate = 1.0;
 
-        fprintf(stderr, "Failed to set internal image scaling rate to %f,resetting to 1X\n",rate);
+        fprintf(stderr, "%s: Failed to set internal image scaling rate to %f,resetting to 1X\n",__func__,rate);
 
         is_err = is_SetSensorScaler(cameraConfig.camera_handle, IS_ENABLE_SENSOR_SCALER, rate);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to set internal image scaling rate to 1X,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Failed to set internal image scaling rate to 1X,error code is %d\n",__func__,is_err);
             return is_err;
         }
     }
 
-    fprintf(stderr, "Updated internal image scaling rate to %fX\n",rate);
+    fprintf(stdout, "%s: Updated internal image scaling rate to %fX\n",__func__,rate);
 
     cameraConfig.sensor_scaling = rate;
 
@@ -1677,7 +1677,7 @@ static int setGain(bool auto_gain, int master_gain, int red_gain,int green_gain,
         {
             if ((is_err = is_SetAutoParameter(cameraConfig.camera_handle, IS_SET_ENABLE_AUTO_GAIN,&pval1, &pval2)) != IS_SUCCESS)
             {
-                fprintf(stderr, "does not support auto gain mode 1,error code is %d\n",is_err);
+                fprintf(stderr, "%s: does not support auto gain mode 1,error code is %d\n",__func__,is_err);
                 auto_gain = false;
             }
         }
@@ -1691,7 +1691,7 @@ static int setGain(bool auto_gain, int master_gain, int red_gain,int green_gain,
             is_err = is_SetAutoParameter(cameraConfig.camera_handle, IS_SET_ENABLE_AUTO_GAIN,&pval1, &pval2);
             if(is_err != IS_SUCCESS)
             {
-                fprintf(stderr, "does not support auto gain mode 2,error code is %d\n",is_err);
+                fprintf(stderr, "%s: does not support auto gain mode 2,error code is %d\n",__func__,is_err);
             }
         }
 
@@ -1706,7 +1706,7 @@ static int setGain(bool auto_gain, int master_gain, int red_gain,int green_gain,
             is_err = is_SetGainBoost(cameraConfig.camera_handle,(gain_boost) ? IS_SET_GAINBOOST_ON : IS_SET_GAINBOOST_OFF);
             if(is_err != IS_SUCCESS)
             {
-                fprintf(stderr, "Failed to set gain boost,error code is %d\n",is_err);
+                fprintf(stderr, "%s: Failed to set gain boost,error code is %d\n",__func__,is_err);
             }
         }
 
@@ -1714,7 +1714,7 @@ static int setGain(bool auto_gain, int master_gain, int red_gain,int green_gain,
         is_err = is_SetHardwareGain(cameraConfig.camera_handle,master_gain,red_gain,green_gain,blue_gain);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to set manual gains,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Failed to set manual gains,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -1727,11 +1727,11 @@ static int setGain(bool auto_gain, int master_gain, int red_gain,int green_gain,
 
     if(auto_gain)
     {
-        fprintf(stderr, "Updated gain to auto\n");
+        fprintf(stderr, "%s: Updated gain to auto\n",__func__);
     }
     else
     {
-        fprintf(stderr, "Updated gain to manual\n");
+        fprintf(stderr, "%s: Updated gain to manual\n",__func__);
     }
 
     return is_err;
@@ -1756,7 +1756,7 @@ static int setExposure(bool auto_exposure, double exposure_ms)
         is_err = is_SetAutoParameter(cameraConfig.camera_handle, IS_SET_ENABLE_AUTO_SHUTTER,&pval1, &pval2);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Auto exposure mode is not supported,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Auto exposure mode is not supported,error code is %d\n",__func__,is_err);
             auto_exposure = false;
         }
     }
@@ -1769,7 +1769,7 @@ static int setExposure(bool auto_exposure, double exposure_ms)
         is_err1 = is_Exposure(cameraConfig.camera_handle, IS_EXPOSURE_CMD_GET_EXPOSURE_RANGE_MAX,(void*)&maxExposure, sizeof(maxExposure));
         if(is_err != IS_SUCCESS || is_err1 != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to query valid exposure range,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Failed to query valid exposure range,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
@@ -1779,7 +1779,7 @@ static int setExposure(bool auto_exposure, double exposure_ms)
         is_err = is_Exposure(cameraConfig.camera_handle, IS_EXPOSURE_CMD_SET_EXPOSURE,(void*)&(exposure_ms), sizeof(exposure_ms));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to set exposure to %f ms\n",exposure_ms);
+            fprintf(stderr, "%s: Failed to set exposure to %f ms\n",__func__,exposure_ms);
             return is_err;
         }
     }
@@ -1787,7 +1787,7 @@ static int setExposure(bool auto_exposure, double exposure_ms)
     cameraConfig.auto_exposure = auto_exposure;
     cameraConfig.exposure = exposure_ms;
 
-    fprintf(stderr, "Updated exposure success\n");
+    fprintf(stdout, "%s: Updated exposure success\n",__func__);
 
     return is_err;
 }
@@ -1813,7 +1813,7 @@ static int setWhiteBalance(bool auto_white_balance, int red_offset,int blue_offs
         is_err = is_SetAutoParameter(cameraConfig.camera_handle, IS_SET_AUTO_WB_ONCE,&pval1, &pval2);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Auto white balance mode is not supported,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Auto white balance mode is not supported,error code is %d\n",__func__,is_err);
             auto_white_balance = false;
         }
     }
@@ -1825,7 +1825,7 @@ static int setWhiteBalance(bool auto_white_balance, int red_offset,int blue_offs
         is_err = is_SetAutoParameter(cameraConfig.camera_handle, IS_SET_AUTO_WB_OFFSET,&pval1, &pval2);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to set white balance red/blue offsets to %d/%d\n",red_offset,blue_offset);
+            fprintf(stderr, "%s: Failed to set white balance red/blue offsets to %d/%d\n",__func__,red_offset,blue_offset);
         }
     }
 
@@ -1833,7 +1833,7 @@ static int setWhiteBalance(bool auto_white_balance, int red_offset,int blue_offs
     cameraConfig.white_balance_red_offset = red_offset;
     cameraConfig.white_balance_blue_offset = blue_offset;
 
-    fprintf(stderr, "Updated white balance success\n");
+    fprintf(stdout, "%s: Updated white balance success\n",__func__);
 
     return is_err;
 }
@@ -1875,7 +1875,7 @@ static int setFrameRate(bool auto_frame_rate, double frame_rate_hz)
         is_err = is_SetAutoParameter(cameraConfig.camera_handle, IS_SET_ENABLE_AUTO_FRAMERATE,&pval1, &pval2);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Auto frame rate mode is not supported,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Auto frame rate mode is not supported,error code is %d\n",__func__,is_err);
             auto_frame_rate = false;
         }
     }
@@ -1885,7 +1885,7 @@ static int setFrameRate(bool auto_frame_rate, double frame_rate_hz)
         is_err = is_GetFrameTimeRange(cameraConfig.camera_handle, &minFrameTime,&maxFrameTime, &intervalFrameTime);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to query valid frame rate range,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Failed to query valid frame rate range,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
@@ -1895,7 +1895,7 @@ static int setFrameRate(bool auto_frame_rate, double frame_rate_hz)
         is_err = is_SetFrameRate(cameraConfig.camera_handle, frame_rate_hz, &newFrameRate);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to set frame rate to %lfHz\n",frame_rate_hz);
+            fprintf(stderr, "%s: Failed to set frame rate to %lfHz\n",__func__,frame_rate_hz);
             return is_err;
         }
         else if(frame_rate_hz != newFrameRate)
@@ -1907,7 +1907,7 @@ static int setFrameRate(bool auto_frame_rate, double frame_rate_hz)
     cameraConfig.auto_frame_rate = auto_frame_rate;
     cameraConfig.frame_rate = frame_rate_hz;
 
-    fprintf(stderr, "Updated frame rate success\n");
+    fprintf(stdout, "%s: Updated frame rate success\n",__func__);
 
     return is_err;
 }
@@ -1929,7 +1929,7 @@ static int setPixelClockRate(int clock_rate_mhz)
                           (void*)&numberOfSupportedPixelClocks,sizeof(numberOfSupportedPixelClocks));
     if(is_err!= IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to query number of supported pixel clocks,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to query number of supported pixel clocks,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
@@ -1941,7 +1941,7 @@ static int setPixelClockRate(int clock_rate_mhz)
                               (void*)pixelClockList, numberOfSupportedPixelClocks * sizeof(int));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to query list of supported pixel clocks,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Failed to query list of supported pixel clocks,error code is %d\n",__func__,is_err);
             return is_err;
         }
     }
@@ -1964,13 +1964,13 @@ static int setPixelClockRate(int clock_rate_mhz)
     is_err = is_PixelClock(cameraConfig.camera_handle, IS_PIXELCLOCK_CMD_SET,(void*)&(clock_rate_mhz), sizeof(clock_rate_mhz));
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to set pixel clock to %dMHz\n",clock_rate_mhz);
+        fprintf(stderr, "%s: Failed to set pixel clock to %dMHz\n",__func__,clock_rate_mhz);
         return is_err;
     }
 
     cameraConfig.pixel_clock = clock_rate_mhz;
 
-    fprintf(stderr, "Updated pixel clock success\n");
+    fprintf(stdout, "%s: Updated pixel clock success\n",__func__);
 
     return IS_SUCCESS;
 }
@@ -1986,14 +1986,14 @@ static int setFlashParams(int delay_us, unsigned int duration_us)
     is_err = is_IO(cameraConfig.camera_handle, IS_IO_CMD_FLASH_GET_PARAMS_MIN,(void*)&minFlashParams, sizeof(IO_FLASH_PARAMS));
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Could not retrieve flash parameter info (min),error code is %d\n",is_err);
+        fprintf(stderr, "%s: Could not retrieve flash parameter info (min),error code is %d\n",__func__,is_err);
         return is_err;
     }
 
     is_err = is_IO(cameraConfig.camera_handle, IS_IO_CMD_FLASH_GET_PARAMS_MAX,(void*)&maxFlashParams, sizeof(IO_FLASH_PARAMS));
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Could not retrieve flash parameter info (max),error code is %d\n",is_err);
+        fprintf(stderr, "%s: Could not retrieve flash parameter info (max),error code is %d\n",__func__,is_err);
         return is_err;
     }
 
@@ -2014,7 +2014,7 @@ static int setFlashParams(int delay_us, unsigned int duration_us)
     is_err = is_IO(cameraConfig.camera_handle, IS_IO_CMD_FLASH_SET_PARAMS,(void*)&newFlashParams, sizeof(IO_FLASH_PARAMS));
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Could not set flash parameter info,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Could not set flash parameter info,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
@@ -2103,7 +2103,7 @@ static int setCameraUserConfig(void)
                                userUi3240Config.image_left,userUi3240Config.image_top);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Failed to set user resolution,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Failed to set user resolution,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -2114,7 +2114,7 @@ static int setCameraUserConfig(void)
         is_err = is_SetColorMode(userUi3240Config.camera_handle, userUi3240Config.color_mode);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set user color mode,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set user color mode,error code is %d\n",__func__,is_err);
         }
 
         if(userUi3240Config.color_mode == IS_CM_BGR8_PACKED || userUi3240Config.color_mode == IS_CM_RGB8_PACKED)
@@ -2132,7 +2132,7 @@ static int setCameraUserConfig(void)
         is_err = setSubsampling(userUi3240Config.subsampling);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set user subsampling,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set user subsampling,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -2141,7 +2141,7 @@ static int setCameraUserConfig(void)
         is_err = setBinning(userUi3240Config.binning);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set user binning,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set user binning,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -2150,7 +2150,7 @@ static int setCameraUserConfig(void)
         is_err = setSensorScaling(userUi3240Config.sensor_scaling);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set user scaling,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set user scaling,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -2165,7 +2165,7 @@ static int setCameraUserConfig(void)
                          userUi3240Config.green_gain,userUi3240Config.blue_gain,userUi3240Config.gain_boost);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set user gain,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set user gain,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -2175,7 +2175,7 @@ static int setCameraUserConfig(void)
         is_err = setExposure(userUi3240Config.auto_exposure,userUi3240Config.exposure);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set user exposure,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set user exposure,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -2188,7 +2188,7 @@ static int setCameraUserConfig(void)
                                 userUi3240Config.white_balance_blue_offset);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set user white_balance,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set user white_balance,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -2198,7 +2198,7 @@ static int setCameraUserConfig(void)
         is_err = setFrameRate(userUi3240Config.auto_frame_rate,userUi3240Config.frame_rate);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set user frame_rate,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set user frame_rate,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -2207,7 +2207,7 @@ static int setCameraUserConfig(void)
         is_err = setPixelClockRate(userUi3240Config.pixel_clock);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set user pixel_clock,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set user pixel_clock,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -2227,7 +2227,7 @@ static int setCameraUserConfig(void)
         is_err = setFlashParams(userUi3240Config.flash_delay,userUi3240Config.flash_duration);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set user flash params,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set user flash params,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -2236,7 +2236,7 @@ static int setCameraUserConfig(void)
         is_err = setMirrorUpsideDown(userUi3240Config.flip_upd);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set user image up down,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set user image up down,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -2245,7 +2245,7 @@ static int setCameraUserConfig(void)
         is_err = setMirrorLeftRight(userUi3240Config.flip_lr);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set user image left right,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set user image left right,error code is %d\n",__func__,is_err);
         }
     }
 
@@ -2274,25 +2274,25 @@ static int setFreeRunMode(void)
         is_err = is_IO(cameraConfig.camera_handle, IS_IO_CMD_FLASH_SET_MODE,(void*)&nMode, sizeof(nMode));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set free-run active-low flash output,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set free-run active-low flash output,error code is %d\n",__func__,is_err);
             return is_err;
         }
 /*
         is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_ENABLE, IS_SET_EVENT_FRAME, sizeof(unsigned int));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not enable frame event,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not enable frame event,error code is %d\n",__func__,is_err);
             return is_err;
         }
 */
         is_err = is_CaptureVideo(cameraConfig.camera_handle, IS_WAIT);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not start free-run live video mode,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not start free-run live video mode,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
-        fprintf(stderr, "Started live video mode\n");
+        fprintf(stdout, "%s: Started live video mode\n",__func__);
 //    }
 
     return is_err;
@@ -2318,19 +2318,19 @@ static int setExtTriggerMode(double frame_rate, int trigger_delay, bool master)
         is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_ENABLE, IS_SET_EVENT_FRAME, sizeof(unsigned int));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not enable frame event,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not enable frame event,error code is %d\n",__func__,is_err);
             return is_err;
         }
 */
         /* If "master" set the GPIO2 to generate PWM */
         if(master)
         {
-            fprintf(stderr, "GPIO2 configured as output (PWM) at %lf Hz\n",frame_rate);
+            fprintf(stderr, "%s: GPIO2 configured as output (PWM) at %lfHz\n",__func__,frame_rate);
 
             is_err = gpioPwmConfig(cameraConfig.camera_handle, frame_rate, true);
             if(is_err != IS_SUCCESS)
             {
-                fprintf(stderr, "Could not set GPIO 2 as output (PWM),error code is %d\n",is_err);
+                fprintf(stderr, "%s: Could not set GPIO 2 as output (PWM),error code is %d\n",__func__,is_err);
                 return is_err;
             }
         }
@@ -2342,7 +2342,7 @@ static int setExtTriggerMode(double frame_rate, int trigger_delay, bool master)
                                  (void *)&nShutterMode, sizeof(nShutterMode));
         if(is_err == IS_SUCCESS)
         {
-            fprintf(stderr, "Global shutter ok,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Global shutter ok,error code is %d\n",__func__,is_err);
         }
         */
 
@@ -2350,18 +2350,18 @@ static int setExtTriggerMode(double frame_rate, int trigger_delay, bool master)
         is_err = gpioInputConfig(cameraConfig.camera_handle);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set GPIO1 as input,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set GPIO1 as input,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
-        fprintf(stderr, "GPIO1 configured as input for triggering\n");
-        fprintf(stderr, "GPIO2 configured as output for flash\n");
+        fprintf(stdout, "%s: GPIO1 configured as input for triggering\n",__func__);
+        fprintf(stdout, "%s: GPIO2 configured as output for flash\n",__func__);
 
         /* Set to trigger on falling edge */
         is_err = is_SetExternalTrigger(cameraConfig.camera_handle, IS_SET_TRIGGER_HI_LO);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not enable falling-edge external trigger mode,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not enable falling-edge external trigger mode,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
@@ -2372,37 +2372,37 @@ static int setExtTriggerMode(double frame_rate, int trigger_delay, bool master)
         is_err = is_SetTriggerDelay(cameraConfig.camera_handle, (int)trigger_delay);
         if(is_err != IS_SUCCESS && (trigger_delay >= min_delay && trigger_delay <= max_delay))
         {
-            fprintf(stderr, "Min delay: %dus; Max delay: %dus\n",min_delay,max_delay);
-            fprintf(stderr, "Could not set trigger-delay,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Min delay: %dus; Max delay: %dus\n",__func__,min_delay,max_delay);
+            fprintf(stderr, "%s: Could not set trigger-delay,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
         current_delay = is_SetTriggerDelay(cameraConfig.camera_handle, IS_GET_TRIGGER_DELAY);
-        fprintf(stderr, "external trigger delay: %dus\n",current_delay);
+        fprintf(stdout, "%s: external trigger delay: %dus\n",__func__,current_delay);
 
         // high level in trigger mode
         is_err = is_IO(cameraConfig.camera_handle, IS_IO_CMD_FLASH_SET_MODE, (void *)&nMode, sizeof(nMode));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "set trigger flash mode failed,error code is %d\n",is_err);
+            fprintf(stderr, "%s: set trigger flash mode failed,error code is %d\n",__func__,is_err);
         } 
 
         // // get the flash Mode to confirm
         is_err = is_IO(cameraConfig.camera_handle, IS_IO_CMD_FLASH_GET_MODE, (void *)&nMode, sizeof(nMode));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "set flash mode failed,error code is %d\n",is_err);
+            fprintf(stderr, "%s: set flash mode failed,error code is %d\n",__func__,is_err);
         }
 
         // start video capture
         is_err = is_CaptureVideo(cameraConfig.camera_handle, IS_DONT_WAIT);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not start external trigger live video mode,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not start external trigger live video mode,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
-        fprintf(stderr, "Started falling-edge external trigger live video mode\n");
+        fprintf(stdout, "%s: Started falling-edge external trigger live video mode\n",__func__);
     }
 
     return is_err;
@@ -2415,20 +2415,20 @@ static int setTriggerMode(void)
 
     if(cameraConfig.ext_trigger_mode) 
     {
-        fprintf(stderr, "Setup external trigger mode...\n");
+        fprintf(stderr, "%s: Setup external trigger mode...\n",__func__);
 
         is_err = setExtTriggerMode(cameraConfig.frame_rate, cameraConfig.ext_trigger_delay, cameraConfig.master);
         if(is_err != IS_SUCCESS) 
         {
-            fprintf(stderr, "Setup external trigger mode failed,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Setup external trigger mode failed,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
-        fprintf(stderr, "Setup external trigger mode success\n");
+        fprintf(stdout, "%s: Setup external trigger mode success\n",__func__);
     } 
     else 
     {
-        fprintf(stderr, "Setup freerun mode...\n");
+        fprintf(stdout, "%s: Setup freerun mode...\n",__func__);
         // NOTE: need to copy flash parameters to local copies since
         //       cameraConfig.flash_duration is type int, and also sizeof(int)
         //       may not equal to sizeof(INT) / sizeof(UINT)
@@ -2437,11 +2437,11 @@ static int setTriggerMode(void)
         is_err1 = setFlashParams(cameraConfig.flash_delay, cameraConfig.flash_duration);
         if(is_err != IS_SUCCESS || is_err1 != IS_SUCCESS)
         {
-            fprintf(stderr, "Setup freerun mode failed,error code is %d,%d\n",is_err,is_err1);
+            fprintf(stderr, "%s: Setup freerun mode failed,error code is %d,%d\n",__func__,is_err,is_err1);
             return is_err;
         }
         
-        fprintf(stderr, "Setup freerun mode success\n");
+        fprintf(stdout, "%s: Setup freerun mode success\n",__func__);
     }
 
     return is_err;
@@ -2466,7 +2466,7 @@ static int queryCameraConfig(void)
     is_err = is_AOI(cameraConfig.camera_handle, IS_AOI_IMAGE_GET_AOI,(void*)&camera_aio, sizeof(camera_aio));
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Could not retrieve Area Of Interest (AOI) information,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Could not retrieve Area Of Interest (AOI) information,error code is %d\n",__func__,is_err);
         return is_err;
     }
     cameraConfig.image_width = camera_aio.s32Width;
@@ -2485,7 +2485,7 @@ static int queryCameraConfig(void)
     }
     else
     {
-        fprintf(stderr, "Current color mode is not supported by this wrapper{mono8 | bayer_rggb8 | rgb8 | bgr8}\n");
+        fprintf(stderr, "%s: Current color mode is not supported by this wrapper{mono8 | bayer_rggb8 | rgb8 | bgr8}\n",__func__);
 
         is_err = setColorMode(UI3240_DEFAULT_CLOLOR_MODE_STRING); 
         if(is_err != IS_SUCCESS)
@@ -2505,7 +2505,7 @@ static int queryCameraConfig(void)
     }
     else if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Could not obtain supported internal image scaling information,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Could not obtain supported internal image scaling information,error code is %d\n",__func__,is_err);
         return is_err;
     }
     else
@@ -2537,12 +2537,12 @@ static int queryCameraConfig(void)
     }
     else
     {
-        fprintf(stderr, "Current sampling rate is not supported by this wrapper; resetting to 1X\n");
+        fprintf(stderr, "%s: Current sampling rate is not supported by this wrapper; resetting to 1X\n",__func__);
 
         is_err = is_SetSubSampling(cameraConfig.camera_handle, IS_SUBSAMPLING_DISABLE);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set subsampling rate to 1X,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set subsampling rate to 1X,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
@@ -2573,13 +2573,13 @@ static int queryCameraConfig(void)
     }
     else
     {
-        fprintf(stderr, "Current binning rate is not supported by this wrapper; resetting to 1X\n");
+        fprintf(stderr, "%s: Current binning rate is not supported by this wrapper; resetting to 1X\n",__func__);
 
         is_err = is_SetBinning(cameraConfig.camera_handle, IS_BINNING_DISABLE);
 
         if (is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "Could not set binning rate to 1X,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Could not set binning rate to 1X,error code is %d\n",__func__,is_err);
             
         }
 
@@ -2590,16 +2590,16 @@ static int queryCameraConfig(void)
     is_err1 = is_SetAutoParameter(cameraConfig.camera_handle,IS_GET_ENABLE_AUTO_GAIN, &pval1, &pval2);
     if(is_err != IS_SUCCESS && is_err1 != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to query auto gain mode,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to query auto gain mode,error code is %d\n",__func__,is_err);
         return is_err;
     }
     
     cameraConfig.auto_gain = (pval1 != 0);
 
-    cameraConfig.master_gain = is_SetHardwareGain(cameraConfig.camera_handle, IS_GET_MASTER_GAIN,IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-    cameraConfig.red_gain = is_SetHardwareGain(cameraConfig.camera_handle, IS_GET_RED_GAIN,IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-    cameraConfig.green_gain = is_SetHardwareGain(cameraConfig.camera_handle, IS_GET_GREEN_GAIN,IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-    cameraConfig.blue_gain = is_SetHardwareGain(cameraConfig.camera_handle, IS_GET_BLUE_GAIN,IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+    cameraConfig.master_gain    = is_SetHardwareGain(cameraConfig.camera_handle, IS_GET_MASTER_GAIN,IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+    cameraConfig.red_gain       = is_SetHardwareGain(cameraConfig.camera_handle, IS_GET_RED_GAIN,IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+    cameraConfig.green_gain     = is_SetHardwareGain(cameraConfig.camera_handle, IS_GET_GREEN_GAIN,IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+    cameraConfig.blue_gain      = is_SetHardwareGain(cameraConfig.camera_handle, IS_GET_BLUE_GAIN,IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
 
     query = is_SetGainBoost(cameraConfig.camera_handle, IS_GET_SUPPORTED_GAINBOOST);
     if(query == IS_SET_GAINBOOST_ON)
@@ -2615,7 +2615,7 @@ static int queryCameraConfig(void)
         }
         else
         {
-            fprintf(stderr, "Failed to query gain boost,error code is %d\n",is_err);
+            fprintf(stderr, "%s: Failed to query gain boost,error code is %d\n",__func__,is_err);
             return query;
         }
     }
@@ -2628,7 +2628,7 @@ static int queryCameraConfig(void)
     is_err1 = is_SetAutoParameter(cameraConfig.camera_handle,IS_GET_ENABLE_AUTO_SHUTTER, &pval1, &pval2);
     if(is_err != IS_SUCCESS && is_err1 != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to query auto shutter mode,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to query auto shutter mode,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
@@ -2637,7 +2637,7 @@ static int queryCameraConfig(void)
     is_err = is_Exposure(cameraConfig.camera_handle, IS_EXPOSURE_CMD_GET_EXPOSURE,&cameraConfig.exposure,sizeof(cameraConfig.exposure));
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to query exposure timing,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to query exposure timing,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
@@ -2645,7 +2645,7 @@ static int queryCameraConfig(void)
     is_err = is_SetAutoParameter(cameraConfig.camera_handle,IS_GET_ENABLE_AUTO_WHITEBALANCE, &pval1, &pval2);
     if(is_err != IS_SUCCESS && is_err1 != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to query auto white balance mode,error code is %d,%d\n",is_err,is_err1);
+        fprintf(stderr, "%s: Failed to query auto white balance mode,error code is %d,%d\n",__func__,is_err,is_err1);
         return is_err;
     }
 
@@ -2654,7 +2654,7 @@ static int queryCameraConfig(void)
     is_err = is_SetAutoParameter(cameraConfig.camera_handle,IS_GET_AUTO_WB_OFFSET, &pval1, &pval2);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to query auto white balance red/blue channel offsets,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to query auto white balance red/blue channel offsets,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
@@ -2664,7 +2664,7 @@ static int queryCameraConfig(void)
     is_err = is_IO(cameraConfig.camera_handle, IS_IO_CMD_FLASH_GET_PARAMS,(void*)&currFlashParams, sizeof(IO_FLASH_PARAMS));
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Could not retrieve current flash parameter info,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Could not retrieve current flash parameter info,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
@@ -2675,7 +2675,7 @@ static int queryCameraConfig(void)
     is_err1 = is_SetAutoParameter(cameraConfig.camera_handle,IS_GET_ENABLE_AUTO_FRAMERATE, &pval1, &pval2);
     if(is_err != IS_SUCCESS && is_err1 != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to query auto frame rate mode,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to query auto frame rate mode,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
@@ -2684,14 +2684,14 @@ static int queryCameraConfig(void)
     is_err = is_SetFrameRate(cameraConfig.camera_handle, IS_GET_FRAMERATE, &cameraConfig.frame_rate);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to query frame rate,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to query frame rate,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
     is_err = is_PixelClock(cameraConfig.camera_handle, IS_PIXELCLOCK_CMD_GET,(void*)&currPixelClock, sizeof(currPixelClock));
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to query pixel clock rate,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to query pixel clock rate,error code is %d\n",__func__,is_err);
         return is_err;
     }
 
@@ -2704,7 +2704,7 @@ static int queryCameraConfig(void)
     // NOTE: do not need to (re-)populate ROS image message, since assume that
     //       syncCamConfig() was previously called
 
-    fprintf(stderr, "Successfully queries parameters from UEye camera\n");
+    fprintf(stdout, "%s: Successfully queries parameters from UEye camera\n",__func__);
 
     return is_err;
 }
@@ -2742,13 +2742,13 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
 
     if(!isCapturing())
     {
-        fprintf(stderr, "!isCapturing()\n");
+        fprintf(stderr, "%s: !isCapturing()\n",__func__);
         return NULL;
     }
 
     if(!freeRunModeActive() && !extTriggerModeActive())
     {
-        fprintf(stderr, "!freeRunModeActive() && !extTriggerModeActive()\n");
+        fprintf(stderr, "%s: !freeRunModeActive() && !extTriggerModeActive()\n",__func__);
         return NULL;
     }
 
@@ -2761,19 +2761,19 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
             is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_INIT, &init_event, sizeof(IS_INIT_EVENT));
             if(is_err != IS_SUCCESS)
             {
-                fprintf(stderr, "Could not init frame event 3,error code is %d\n",is_err);
+                fprintf(stderr, "%s: Could not init frame event 3,error code is %d\n",__func__,is_err);
             }
 
             is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_DISABLE, &event, sizeof(unsigned int));
             if(is_err != IS_SUCCESS)
             {
-                fprintf(stderr, "Could not disable frame event 3,error code is %d\n",is_err);
+                fprintf(stderr, "%s: Could not disable frame event 3,error code is %d\n",__func__,is_err);
             }
 
             is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_EXIT, &event, sizeof(unsigned int));
             if(is_err != IS_SUCCESS)
             {
-                fprintf(stderr, "Could not exit frame event,error code is %d\n",is_err);
+                fprintf(stderr, "%s: Could not exit frame event,error code is %d\n",__func__,is_err);
             }
         }
         else
@@ -2783,13 +2783,13 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
             is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_INIT, &init_event, sizeof(IS_INIT_EVENT));
             if(is_err != IS_SUCCESS)
             {
-                fprintf(stderr, "Could not init frame event 2,error code is %d\n",is_err);
+                fprintf(stderr, "%s: Could not init frame event 2,error code is %d\n",__func__,is_err);
             }
 
             is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_ENABLE, &event, sizeof(unsigned int));
             if(is_err != IS_SUCCESS)
             {
-                fprintf(stderr, "Could not enable frame event,error code is %d\n",is_err);
+                fprintf(stderr, "%s: Could not enable frame event,error code is %d\n",__func__,is_err);
             }
         }
     }
@@ -2801,11 +2801,11 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
         {
             if(is_err == IS_TIMED_OUT)
             {
-                fprintf(stderr, "capture image from queue timeout\n");
+                fprintf(stderr, "%s: capture image from queue timeout\n",__func__);
             }
             else
             {
-                fprintf(stderr, "Failed to capture from queue image,error code is %d\n",is_err);
+                fprintf(stderr, "%s: Failed to capture from queue image,error code is %d\n",__func__,is_err);
             }
 
             return NULL;
@@ -2817,14 +2817,14 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
         is_err = is_CopyImageMem(cameraConfig.camera_handle,memory,id,cameraConfig.image_buf.image);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "copy image buffer failed,error code is %d\n",is_err);
+            fprintf(stderr, "%s: copy image buffer failed,error code is %d\n",__func__,is_err);
             return NULL;
         }
 
         is_err = getTimestamp(&time_stamp,id);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "query image time stamp failed,error code is %d\n",is_err);
+            fprintf(stderr, "%s: query image time stamp failed,error code is %d\n",__func__,is_err);
             return NULL;
         }
 
@@ -2845,11 +2845,11 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
         {
             if(is_err == IS_TIMED_OUT)
             {
-                fprintf(stderr, "capture image from event timeout\n");
+                fprintf(stderr, "%s: capture image from event timeout\n",__func__);
             }
             else
             {
-                fprintf(stderr, "Failed to capture from event image,error code is %d\n",is_err);
+                fprintf(stderr, "%s: Failed to capture from event image,error code is %d\n",__func__,is_err);
             }
 
             return NULL;
@@ -2858,14 +2858,14 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
         is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_RESET, &event, sizeof(unsigned int));
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "reset event image failed,error code is %d\n",is_err);
+            fprintf(stderr, "%s: reset event image failed,error code is %d\n",__func__,is_err);
             return NULL;
         }
 
         is_err = is_GetImageMem(cameraConfig.camera_handle, (void **)&memory);
         if(is_err != IS_SUCCESS)
         {
-            fprintf(stderr, "get image menory failed,error code is %d\n",is_err);
+            fprintf(stderr, "%s: get image menory failed,error code is %d\n",__func__,is_err);
             return NULL;
         }
 
@@ -2876,10 +2876,10 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
     is_err = is_UnlockSeqBuf(cameraConfig.camera_handle, IS_IGNORE_PARAMETER, memory);
     if(is_err != IS_SUCCESS)
     {
-        fprintf(stderr, "Failed to unlock image buffer,error code is %d\n",is_err);
+        fprintf(stderr, "%s: Failed to unlock image buffer,error code is %d\n",__func__,is_err);
     }
 
-    fprintf(stderr, "Get frame from driver OK\n");
+    fprintf(stdout, "%s: Get frame from driver OK\n",__func__);
 
     return cameraConfig.image_buf.image;
 }
@@ -2888,7 +2888,7 @@ static void initCameraConfig(struct Ui3240Config *config,struct CmdArgs *args)
 {
     if(config == NULL || args == NULL)
     {
-        fprintf(stderr, "input paras is NULL\n");
+        fprintf(stderr, "%s: input paras is NULL\n",__func__);
         return;
     }
 
@@ -2932,7 +2932,7 @@ static void printCameraConfig(struct Ui3240Config *config)
 {
     if(config == NULL)
     {
-        fprintf(stderr, "input paras is NULL\n");
+        fprintf(stderr, "%s: input paras is NULL\n",__func__);
         return;
     }
 
@@ -2996,7 +2996,7 @@ void sendFrameRateMsgToThreadSync(void)
     ret = msgsnd(FrameRateMsgId,&FrameRateMsg,sizeof(FrameRateMsg.mtext),0);
     if(ret == -1)
     {
-        fprintf(stderr, "thread_ui3240: send FrameRateMsg failed,failed times: %d\n",cnt + 1);
+        fprintf(stderr, "%s: send FrameRateMsg failed,failed times: %d\n",__func__,cnt + 1);
 
         usleep(100 * 1000);
 
@@ -3014,13 +3014,13 @@ static void ui3240CreateMsgQueue(void)
     FrameRateMsgId = msgget((key_t)KEY_FRAME_RATE_MSG, IPC_CREAT | 0777);
     if(FrameRateMsgId == -1)
     {
-        fprintf(stderr, "thread_ui3240: create FrameRateMsg failed\n");
+        fprintf(stderr, "%s: create FrameRateMsg failed\n",__func__);
     }
 
     ui3240ImageCounterMsgId = msgget((key_t)KEY_VIDEO_IMAGE_COUNTER_MSG, IPC_CREAT | 0777);
     if(ui3240ImageCounterMsgId == -1)
     {
-        fprintf(stderr, "thread_ui3240: create ui3240ImageCounterMsg failed\n");
+        fprintf(stderr, "%s: create ui3240ImageCounterMsg failed\n",__func__);
     }
 
     memset(&FrameRateMsg,0,sizeof(struct QueueMsgNormal));
@@ -3040,7 +3040,7 @@ static int ui3240SendImageCounterToMainThread(unsigned int counter)
     ret = msgsnd(ui3240ImageCounterMsgId,&ui3240ImageCounterMsg,sizeof(ui3240ImageCounterMsg.mtext),0);
     if(ret == -1)
     {
-        fprintf(stderr, "thread_ui3240: send ui3240ImageCounterMsg failed\n");
+        fprintf(stderr, "%s: send ui3240ImageCounterMsg failed\n",__func__);
     }
 
     return ret;
@@ -3068,7 +3068,7 @@ void *thread_ui3240(void *arg)
                 ret = connectCamrea(cameraConfig.camera_id);
                 if(ret != IS_SUCCESS)
                 {
-                    printf("thread_ui3240: connect camera failed\n");
+                    fprintf(stderr,"%s: connect camera failed\n",__func__);
                     camera_state = DISCONNECT_CAMERA;
                 }
                 camera_state = LOAD_DEFAULT_CONFIG;
@@ -3078,7 +3078,7 @@ void *thread_ui3240(void *arg)
                 ret = loadCameraDefaultConfig(L"./config/ids_default_config.ini", false);
                 if(ret != IS_SUCCESS)
                 {
-                    printf("thread_ui3240: load camera default config failed\n");
+                    fprintf(stderr,"%s: load camera default config failed\n",__func__);
                     camera_state = DISCONNECT_CAMERA;
                 }
                 else
@@ -3091,7 +3091,7 @@ void *thread_ui3240(void *arg)
                 ret = queryCameraConfig();
                 if(ret != IS_SUCCESS)
                 {
-                    printf("thread_ui3240: query camera config failed\n");
+                    fprintf(stderr,"%s: query camera config failed\n",__func__);
                 }
                 camera_state = LOAD_USER_CONFIG;
             break;
@@ -3100,7 +3100,7 @@ void *thread_ui3240(void *arg)
                 ret = loadCameraUserConfig(args->usb_cam_user_conf_file);
                 if(ret != IS_SUCCESS)
                 {
-                    printf("thread_ui3240: load camera user config failed\n");
+                    fprintf(stderr,"%s: load camera user config failed\n",__func__);
                     camera_state = ALLOC_FRAME_BUFFER;
                 }
                 else
@@ -3118,7 +3118,7 @@ void *thread_ui3240(void *arg)
                 ret = reallocateCameraBuffer();
                 if(ret != IS_SUCCESS)
                 {
-                    printf("thread_ui3240: alloc camera buffer failed\n");
+                    fprintf(stderr,"%s: alloc camera buffer failed\n",__func__);
                     camera_state = DISCONNECT_CAMERA;
                 }
                 else
@@ -3133,7 +3133,7 @@ void *thread_ui3240(void *arg)
                 ret = setTriggerMode();
                 if(ret != IS_SUCCESS)
                 {
-                    printf("thread_ui3240: set trigger mode failed\n");
+                    fprintf(stderr,"%s: set trigger mode failed\n",__func__);
                     camera_state = DISCONNECT_CAMERA;
                 }
                 else
@@ -3146,14 +3146,14 @@ void *thread_ui3240(void *arg)
                 frame_buf = captureImage(cameraConfig.capture_mode,cameraConfig.capture_timeout);
                 if(frame_buf != NULL)
                 {
-                    printf("thread_ui3240: capture iamge success\n");
+                    fprintf(stdout,"%s: capture iamge success\n",__func__);
                     frame_buf = NULL;
                     ImageCounter ++;
 
                     ret = ui3240SendImageCounterToMainThread(ImageCounter);
                     if(ret != 0)
                     {
-                        printf("thread_ui3240: send ui3240ImageCounterMsg failed\n");
+                        fprintf(stderr,"%s: send ui3240ImageCounterMsg failed\n",__func__);
                     }
                 }
             break;

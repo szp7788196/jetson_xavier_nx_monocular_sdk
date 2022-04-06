@@ -32,7 +32,7 @@ static int sync_serial_init(struct CmdArgs *args)
                      args->databits3,0);
     if(ret)
     {
-        fprintf(stderr, "thread_sync: open %s failed\n",args->serial3);
+        fprintf(stderr, "%s: open %s failed\n",__func__,args->serial3);
 
         sleep(5);
 
@@ -114,7 +114,7 @@ static int syncParseImuData(unsigned char *inbuf)
 
     if(*(inbuf + POS_IMU_HEAD + 0) != 0x40 || *(inbuf + POS_IMU_HEAD + 1) != 0x79)
     {
-        fprintf(stderr, "imu data head err,is not 0x40 0x79\n");
+        fprintf(stderr, "%s: imu data head err,is not 0x40 0x79\n",__func__);
         return -1;
     }
 
@@ -123,7 +123,7 @@ static int syncParseImuData(unsigned char *inbuf)
                      ((((unsigned short)(*(inbuf + POS_IMU_CHECK + 1))) << 0) & 0x00FF);
     if(check_sum_cal != check_sum_recv)
     {
-        fprintf(stderr, "imu data check sum err,cal:%04X,recv:%04X\n",check_sum_cal,check_sum_recv);
+        fprintf(stderr, "%s: imu data check sum err,cal:%04X,recv:%04X\n",__func__,check_sum_cal,check_sum_recv);
         return -1;
     }
 
@@ -135,7 +135,7 @@ static int syncParseImuData(unsigned char *inbuf)
     {
         if(syncImuData.counter - last_counter != 1)
         {
-            fprintf(stderr, "imu data counter err,is not continous\n");
+            fprintf(stderr, "%s: imu data counter err,is not continous\n",__func__);
         }
     }
 
@@ -204,7 +204,7 @@ static int syncSendCamCounterToMainThread(unsigned int counter)
     ret = msgsnd(syncCamCounterMsgId,&syncCamCounterMsg,sizeof(syncCamCounterMsg.mtext),0);
     if(ret == -1)
     {
-        fprintf(stderr, "thread_sync: send syncCamCounterMsg failed\n");
+        fprintf(stderr, "%s: send syncCamCounterMsg failed\n",__func__);
     }
 
     return ret;
@@ -224,7 +224,7 @@ static int syncParseCamTimeStamp(unsigned char *inbuf)
     {
         if(syncCamTimeStamp.counter - last_counter != 1)
         {
-            fprintf(stderr, "camare time stamp counter err,is not continous\n");
+            fprintf(stderr, "%s: camare time stamp counter err,is not continous\n",__func__);
         }
     }
 
@@ -245,8 +245,6 @@ static int syncParseCamTimeStamp(unsigned char *inbuf)
     syncCamTimeStamp.time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
     ret = syncSendCamCounterToMainThread(syncCamTimeStamp.counter);
-
-    printf("------------------------------------------------------------------- camera counter = %d\n",syncCamTimeStamp.counter);
 
     return ret;
 }
@@ -296,7 +294,7 @@ static void syncRecvAndParseMessage(void)
                         ret = syncParseImuData(&recv_buf[head_pos]);
                         if(ret != 0)
                         {
-                            fprintf(stderr, "parse imu data failed\n");
+                            fprintf(stderr, "%s: parse imu data failed\n",__func__);
                         }
                     }
                     else if(recv_buf[head_pos + 2] == 0x01)
@@ -304,7 +302,7 @@ static void syncRecvAndParseMessage(void)
                         ret = syncParseCamTimeStamp(&recv_buf[head_pos]);
                         if(ret != 0)
                         {
-                            fprintf(stderr, "parse camera time stamp failed\n");
+                            fprintf(stderr, "%s: parse camera time stamp failed\n",__func__);
                         }
                     }
 
@@ -349,7 +347,7 @@ static int recvFrameRateMsg(void)
 
     if(FrameRateMsgId == -1)
     {
-        fprintf(stderr, "thread_sync: no FrameRateMsgId queue\n");
+        fprintf(stderr, "%s: no FrameRateMsgId queue\n",__func__);
         return -1;
     }
 
@@ -359,21 +357,21 @@ static int recvFrameRateMsg(void)
         return -1;
     }
 
-    fprintf(stderr, "thread_sync: revc FrameRateMsg queue\n");
+    fprintf(stderr, "%s: revc FrameRateMsg queue\n",__func__);
 
     msg_len = ((((unsigned short)FrameRateMsg.mtext[0]) << 8) & 0xFF00) + 
               ((unsigned short)FrameRateMsg.mtext[1] & 0x00FF);
 
     if(msg_len != 9)
     {
-        fprintf(stderr, "thread_sync: FrameRateMsg queue len error,len is %d,but should be 9\n",msg_len);
+        fprintf(stderr, "%s: FrameRateMsg queue len error,len is %d,but should be 9\n",__func__,msg_len);
         return -1;
     }
 
     if(FrameRateMsg.mtext[2] > 1)
     {
-        fprintf(stderr, "thread_sync: FrameRateMsg queue autoFrameRate error,autoFrameRate is %d,"
-                         "but should be 0 or 1\n",FrameRateMsg.mtext[2]);
+        fprintf(stderr, "%s: FrameRateMsg queue autoFrameRate error,autoFrameRate is %d,"
+                         "but should be 0 or 1\n",__func__,FrameRateMsg.mtext[2]);
         return -1;
     }
 
@@ -383,8 +381,8 @@ static int recvFrameRateMsg(void)
 
     if(frame_rate < 0 || frame_rate > 120)
     {
-        fprintf(stderr, "thread_sync: FrameRateMsg queue frame_rate error,frame_rate is %f,"
-                         "but should be more than 0 and less than 120\n",frame_rate);
+        fprintf(stderr, "%s: FrameRateMsg queue frame_rate error,frame_rate is %f,"
+                         "but should be more than 0 and less than 120\n",__func__,frame_rate);
         return -1;
     }
 
@@ -411,7 +409,7 @@ static int recvUb482TimeStampAndSendToSyncModule(void)
 
     if(ub482TimeStampMsgId == -1)
     {
-        fprintf(stderr, "thread_sync: no ub482TimeStampMsgId queue\n");
+        fprintf(stderr, "%s: no ub482TimeStampMsgId queue\n",__func__);
         return -1;
     }
 
@@ -421,14 +419,14 @@ static int recvUb482TimeStampAndSendToSyncModule(void)
         return -1;
     }
 
-    fprintf(stderr, "thread_sync: revc ub482TimeStampMsg queue\n");
+    fprintf(stderr, "%s: revc ub482TimeStampMsg queue\n",__func__);
 
     msg_len = ((((unsigned short)ub482TimeStampMsg.mtext[0]) << 8) & 0xFF00) + 
               ((unsigned short)ub482TimeStampMsg.mtext[1] & 0x00FF);
 
     if(msg_len != 8)
     {
-        fprintf(stderr, "thread_sync: ub482TimeStampMsg queue len error,len is %d,but should be 8\n",msg_len);
+        fprintf(stderr, "%s: ub482TimeStampMsg queue len error,len is %d,but should be 8\n",__func__,msg_len);
         return -1;
     }
 
@@ -438,7 +436,7 @@ static int recvUb482TimeStampAndSendToSyncModule(void)
     {
         if(time_stamp - last_time_stamp >= 2)
         {
-            fprintf(stderr, "thread_sync: ub482 time stamp is not continous\n");
+            fprintf(stderr, "%s: ub482 time stamp is not continous\n",__func__);
         }
     }
 
@@ -447,7 +445,7 @@ static int recvUb482TimeStampAndSendToSyncModule(void)
     ret = syncSetTimeStamp(time_stamp);
     if(ret < 0)
     {
-        fprintf(stderr, "thread_sync: send time stamp to sync module failed\n");
+        fprintf(stderr, "%s: send time stamp to sync module failed\n",__func__);
     }
 
     return ret;
@@ -458,18 +456,18 @@ static void syncCreateMsgQueue(void)
     FrameRateMsgId = msgget((key_t)KEY_FRAME_RATE_MSG, IPC_CREAT | 0777);
     if(FrameRateMsgId == -1)
     {
-        fprintf(stderr, "thread_sync: create FrameRateMsg failed\n");
+        fprintf(stderr, "%s: create FrameRateMsg failed\n",__func__);
     }
     ub482TimeStampMsgId = msgget((key_t)KEY_UB482_TIME_STAMP_MSG, IPC_CREAT | 0777);
     if(ub482TimeStampMsgId == -1)
     {
-        fprintf(stderr, "thread_sync: create ub482TimeStampMsg failed\n");
+        fprintf(stderr, "%s: create ub482TimeStampMsg failed\n",__func__);
     }
 
     syncCamCounterMsgId = msgget((key_t)KEY_SYNC_CAM_COUNTER_MSG, IPC_CREAT | 0777);
     if(syncCamCounterMsgId == -1)
     {
-        fprintf(stderr, "thread_sync: create syncCamCounterMsg failed\n");
+        fprintf(stderr, "%s: create syncCamCounterMsg failed\n",__func__);
     }
 
     memset(&FrameRateMsg,0,sizeof(struct QueueMsgNormal));

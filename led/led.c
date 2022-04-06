@@ -31,7 +31,7 @@ void *thread_led(void *arg)
 	ledFd = open("/dev/gpio-led", O_RDWR);
 	if(0 > ledFd) 
     {
-        fprintf(stderr, "thread_led: open /dev/gpio-led failed\n");
+        fprintf(stderr, "%s: open /dev/gpio-led failed\n",__func__);
 		goto THREAD_EXIT;
 	}
 

@@ -72,7 +72,7 @@ int check_rtcm3(const unsigned char *data, unsigned int data_len)
 		{
 			if(data[i] != RTCM3PREAMB)
 			{
-				printf("not correct preamb");
+				fprintf(stderr, "%s: not correct preamb\n",__func__);
 				continue;
 			}
 			
@@ -98,7 +98,7 @@ int check_rtcm3(const unsigned char *data, unsigned int data_len)
 
 	if(nbyte != 0)
 	{
-		printf("message not complete!");
+		fprintf(stderr, "%s: message not complete!\n",__func__);
 	}
 
     return ret;

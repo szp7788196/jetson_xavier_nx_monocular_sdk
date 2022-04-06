@@ -124,14 +124,14 @@ static int packHttpLogonNtripServerFrame(char *outbuf,struct CmdArgs *args)
 
         if(send_len < 0 || send_len > MAX_NET_BUF_LEN - 64)
         {
-            fprintf(stderr, "thread_net: Requested data too long\n");
+            fprintf(stderr, "%s: Requested data too long\n",__func__);
             return 0;
         }
         
         send_len += encode(outbuf + send_len, MAX_NET_BUF_LEN -send_len - 4, args->user_name, args->password);
         if(send_len > MAX_NET_BUF_LEN - 4)
         {
-            fprintf(stderr, "thread_net: user name and/or password too long\n");
+            fprintf(stderr, "%s: user name and/or password too long\n",__func__);
             return 0;
         }
 
@@ -180,7 +180,7 @@ static int recvUb482GpggaMsgAndSendToNtripServer(struct CmdArgs *args)
 
     if(ub482GpggaMsgId == -1)
     {
-        fprintf(stderr, "thread_net: no ub482GpggaMsg queue\n");
+        fprintf(stderr, "%s: no ub482GpggaMsg queue\n",__func__);
         return -1;
     }
 
@@ -244,7 +244,7 @@ static int recvNtripDataAndSendToNtripMsg(void)
             ret = check_rtcm3((unsigned char *)recv_buf, revc_len);
             if(ret == -1)
             {
-                fprintf(stderr, "thread_net: ntrip data crc error\n");
+                fprintf(stderr, "%s: ntrip data crc error\n",__func__);
                 return 0;
             }
 
@@ -252,7 +252,7 @@ static int recvNtripDataAndSendToNtripMsg(void)
 
             if(revc_len > NTRIP_MSG_MAX_LEN - 2)
             {
-                fprintf(stderr, "thread_net: ntrip data len error\n");
+                fprintf(stderr, "%s: ntrip data len error\n",__func__);
                 return 0;
             }
 
@@ -265,7 +265,7 @@ static int recvNtripDataAndSendToNtripMsg(void)
             ret = msgsnd(ntripDataMsgId,&ntripDataMsg,sizeof(ntripDataMsg.mtext),0);
             if(ret == -1)
             {
-                fprintf(stderr, "thread_net: send ntripDataMsg failed\n");
+                fprintf(stderr, "%s: send ntripDataMsg failed\n",__func__);
                 return 0;
             }
         }
@@ -302,7 +302,7 @@ void *thread_net_recv(void *arg)
             ret = recvNtripDataAndSendToNtripMsg();
             if(ret == -1)
             {
-                fprintf(stderr, "thread_recv: disconnected form ntrip server\n");
+                fprintf(stderr, "%s: disconnected form ntrip server\n",__func__);
 
                 close(socketFd);
 
@@ -319,12 +319,12 @@ static void netCreateMsgQueue(void)
     ub482GpggaMsgId = msgget((key_t)KEY_UB482_GPGGA_MSG, IPC_CREAT | 0777);
     if(ub482GpggaMsgId == -1)
     {
-        fprintf(stderr, "thread_net: create ub482GpggaMsg failed\n");
+        fprintf(stderr, "%s: create ub482GpggaMsg failed\n",__func__);
     }
     ntripDataMsgId = msgget((key_t)KEY_NTRIP_MSG, IPC_CREAT | 0777);
     if(ntripDataMsgId == -1)
     {
-        fprintf(stderr, "thread_net: create ntripDataMsg failed\n");
+        fprintf(stderr, "%s: create ntripDataMsg failed\n",__func__);
     }
 
     memset(&ub482GpggaMsg,0,sizeof(struct QueueMsgGpgga));
@@ -386,18 +386,18 @@ void *thread_net(void *arg)
                 ret = connect(socketFd, (struct sockaddr *)&server_addr,sizeof(struct sockaddr));
                 if(ret == 0)
                 {
-                    printf("thread_net: connected to ntrip server\n");
+                    printf("%s: connected to ntrip server\n",__func__);
                     connectState = CONNECTED;
                 }
 
                 if(tid_net_recv == 0)
                 {
-                    fprintf(stderr, "thread_net: create thread_net_recv\n");
+                    fprintf(stderr, "%s: create thread_net_recv\n",__func__);
 
                     ret = pthread_create(&tid_net_recv,NULL,thread_net_recv,NULL);
                     if(0 != ret)
                     {
-                        fprintf(stderr, "thread_net: create thread_net_recv failed\n");
+                        fprintf(stderr, "%s: create thread_net_recv failed\n",__func__);
                         exit(1);
                     }
                 }
