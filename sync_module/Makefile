@@ -1,0 +1,1 @@
+obj-y += sync_module.o
