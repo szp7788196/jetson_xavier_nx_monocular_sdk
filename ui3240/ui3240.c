@@ -2,7 +2,6 @@
 
 static struct Ui3240Config cameraConfig;
 static struct Ui3240Config userUi3240Config;
-static unsigned int ImageCounter = 0;
 
 static bool isConnected(void)
 {
@@ -1143,11 +1142,15 @@ static int reallocateCameraBuffer(void)
         cameraConfig.frame_buf = NULL;
     }
 
+/*
     if(cameraConfig.image_buf.image != NULL)
     {
         free(cameraConfig.image_buf.image);
         cameraConfig.image_buf.image = NULL;
     }
+*/
+
+    freeImageHeap(cameraConfig.image_heap_depth);
 
     if(cameraConfig.frame_buf_id != NULL)
     {
@@ -1246,6 +1249,7 @@ static int reallocateCameraBuffer(void)
 
     cameraConfig.frame_buf_size = cam_buffer_pitch * frame_height;
 
+/*
     if(cameraConfig.image_buf.image == NULL)
     {
         cameraConfig.image_buf.image = (char *)malloc(cameraConfig.frame_buf_size);
@@ -1261,6 +1265,12 @@ static int reallocateCameraBuffer(void)
     {
         fprintf(stderr, "%s: alloc image buffer failed 2\n",__func__);
         return IS_NO_SUCCESS;
+    }
+*/
+    is_err = allocateImageHeap(cameraConfig.image_heap_depth,cameraConfig.frame_buf_size);
+    if(is_err != IS_SUCCESS)
+    {
+        fprintf(stderr, "%s: allocate image heap failed\n",__func__);
     }
 
     return is_err;
@@ -2705,6 +2715,7 @@ static int queryCameraConfig(void)
     return is_err;
 }
 
+/*
 static int getTimestamp(UEYETIME *timestamp,int cam_buffer_id)
 {
     int is_err = IS_SUCCESS;
@@ -2720,14 +2731,15 @@ static int getTimestamp(UEYETIME *timestamp,int cam_buffer_id)
 
     return IS_NO_SUCCESS;
 }
+*/
 
-char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
+static int captureImage(struct ImageBuffer *image_buf,unsigned char capture_mode, unsigned short timeout_ms)
 {
     int is_err = IS_SUCCESS;
     static unsigned char mode = 255;
     char *memory = NULL;
     int id;
-    UEYETIME time_stamp;
+//    UEYETIME time_stamp;
     IMAGEQUEUEWAITBUFFER waitBuffer;
     waitBuffer.timeout = timeout_ms;
     waitBuffer.pnMemId= &id;
@@ -2739,13 +2751,13 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
     if(!isCapturing())
     {
         fprintf(stderr, "%s: !isCapturing()\n",__func__);
-        return NULL;
+        return IS_NO_SUCCESS;
     }
 
     if(!freeRunModeActive() && !extTriggerModeActive())
     {
         fprintf(stderr, "%s: !freeRunModeActive() && !extTriggerModeActive()\n",__func__);
-        return NULL;
+        return IS_NO_SUCCESS;
     }
 
     if(mode != capture_mode)
@@ -2804,24 +2816,26 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
                 fprintf(stderr, "%s: Failed to capture from queue image,error code is %d\n",__func__,is_err);
             }
 
-            return NULL;
+            return IS_NO_SUCCESS;
         }
 
-        // copy the buffer
-//        memcpy(cameraConfig.image_buf.image, memory, cameraConfig.frame_buf_size);
-
-        is_err = is_CopyImageMem(cameraConfig.camera_handle,memory,id,cameraConfig.image_buf.image);
+        pthread_mutex_lock(&mutexImageHeap); 
+        is_err = is_CopyImageMem(cameraConfig.camera_handle,memory,id,image_buf->image);
         if(is_err != IS_SUCCESS)
-        {
+        {   
+            pthread_mutex_unlock(&mutexImageHeap);
             fprintf(stderr, "%s: copy image buffer failed,error code is %d\n",__func__,is_err);
-            return NULL;
+            return IS_NO_SUCCESS;
         }
 
+        image_buf->size = cameraConfig.frame_buf_size;
+        pthread_mutex_unlock(&mutexImageHeap);
+/*
         is_err = getTimestamp(&time_stamp,id);
         if(is_err != IS_SUCCESS)
         {
             fprintf(stderr, "%s: query image time stamp failed,error code is %d\n",__func__,is_err);
-            return NULL;
+            return IS_NO_SUCCESS;
         }
 
         printf("============================= time stamp start==============================\n");
@@ -2833,6 +2847,7 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
         printf("| second      : %d\n",time_stamp.wSecond);
         printf("| willi second: %d\n",time_stamp.wMilliseconds);
         printf("============================= time stamp end ===============================\n");
+*/
     }
     else
     {
@@ -2848,24 +2863,28 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
                 fprintf(stderr, "%s: Failed to capture from event image,error code is %d\n",__func__,is_err);
             }
 
-            return NULL;
+            return IS_NO_SUCCESS;
         }
 
         is_err = is_Event(cameraConfig.camera_handle, IS_EVENT_CMD_RESET, &event, sizeof(unsigned int));
         if(is_err != IS_SUCCESS)
         {
             fprintf(stderr, "%s: reset event image failed,error code is %d\n",__func__,is_err);
-            return NULL;
+            return IS_NO_SUCCESS;
         }
 
         is_err = is_GetImageMem(cameraConfig.camera_handle, (void **)&memory);
         if(is_err != IS_SUCCESS)
         {
             fprintf(stderr, "%s: get image menory failed,error code is %d\n",__func__,is_err);
-            return NULL;
+            return IS_NO_SUCCESS;
         }
 
-        memcpy(cameraConfig.image_buf.image, memory, cameraConfig.frame_buf_size);
+        pthread_mutex_lock(&mutexImageHeap); 
+        memcpy(image_buf->image, memory, cameraConfig.frame_buf_size);
+
+        image_buf->size = cameraConfig.frame_buf_size;
+        pthread_mutex_unlock(&mutexImageHeap);
     }
 
     // Unlock the buffer which has been automatically locked by is_WaitForNextImage()
@@ -2877,7 +2896,7 @@ char *captureImage(unsigned char capture_mode, unsigned short timeout_ms)
 
     fprintf(stdout, "%s: Get frame from driver OK\n",__func__);
 
-    return cameraConfig.image_buf.image;
+    return is_err;
 }
 
 static void initCameraConfig(struct Ui3240Config *config,struct CmdArgs *args)
@@ -2897,6 +2916,7 @@ static void initCameraConfig(struct Ui3240Config *config,struct CmdArgs *args)
     config->image_left                  = 0;
     config->image_top                   = 256;
     config->frame_num                   = args->frame_num;
+    config->image_heap_depth            = args->image_heap_depth;
     config->color_mode                  = IS_CM_MONO8;
     config->bits_per_pixel              = 8;
     config->subsampling                 = 1;
@@ -2944,6 +2964,7 @@ static void printCameraConfig(struct Ui3240Config *config)
     printf("| image_left                = %d\n",config->image_left);
     printf("| image_top                 = %d\n",config->image_top);
     printf("| frame_num                 = %d\n",config->frame_num);
+    printf("| image_heap_depth          = %d\n",config->image_heap_depth);
     printf("| frame_buf_size            = %d\n",config->frame_buf_size);
     printf("| color_mode                = %d\n",config->color_mode);
     printf("| bits_per_pixel            = %d\n",config->bits_per_pixel);
@@ -2996,12 +3017,28 @@ static void sendFrameRateMsgToThreadSync(void)
     }
 }
 
+static int recvResetMsg(void)
+{
+    int ret = 0;
+    unsigned char *reset = NULL;
+
+    ret = xQueueReceive((key_t)KEY_CAMERA_RESET_MSG,(void **)&reset,0);
+    if(ret == -1)
+    {
+        return -1;
+    }
+
+    free(reset);
+    reset = NULL;
+
+    return ret;
+}
+
 void *thread_ui3240(void *arg)
 {
     int ret = IS_SUCCESS;
     struct CmdArgs *args = (struct CmdArgs *)arg;
     enum CameraState camera_state = INIT_CONFIG;
-    char *frame_buf = NULL;
 
     while(1)
     {
@@ -3019,7 +3056,10 @@ void *thread_ui3240(void *arg)
                     fprintf(stderr,"%s: connect camera failed\n",__func__);
                     camera_state = DISCONNECT_CAMERA;
                 }
-                camera_state = LOAD_DEFAULT_CONFIG;
+                else
+                {
+                    camera_state = LOAD_DEFAULT_CONFIG;
+                }
             break;
 
             case (unsigned char)LOAD_DEFAULT_CONFIG:    //加载默认配置
@@ -3092,12 +3132,15 @@ void *thread_ui3240(void *arg)
             break;
 
             case (unsigned char)CAPTURE_IMAGE:          //采集图像
-                frame_buf = captureImage(cameraConfig.capture_mode,cameraConfig.capture_timeout);
-                if(frame_buf != NULL)
+                ret = captureImage(imageHeap.heap[imageHeap.put_ptr]->image,
+                                   cameraConfig.capture_mode,
+                                   cameraConfig.capture_timeout);
+                if(ret == IS_SUCCESS)
                 {
-                    fprintf(stdout,"%s: capture iamge success\n",__func__);
-                    frame_buf = NULL;
-                    ImageCounter ++;
+                    pthread_cond_signal(&condImageHeap);
+
+                    fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
+                            __func__,imageHeap.heap[imageHeap.put_ptr]->image->counter,imageHeap.put_ptr);
                 }
             break;
 
@@ -3110,6 +3153,12 @@ void *thread_ui3240(void *arg)
             default:
                 camera_state = DISCONNECT_CAMERA;
             break;
+        }
+
+        ret = recvResetMsg();
+        if(ret == 0)
+        {
+            camera_state = DISCONNECT_CAMERA;
         }
     }
 }

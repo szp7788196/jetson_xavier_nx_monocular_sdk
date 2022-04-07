@@ -151,8 +151,6 @@ static int logonToNtripServer(struct CmdArgs *args)
         ret = send(socketFd, send_buf, ret, 0);
     }
 
-    printf("%s",send_buf);
-
     if(ret > 0)
     {
         while(wait_cnt --)
@@ -175,7 +173,7 @@ static int recvUb482GpggaMsgAndSendToNtripServer(struct CmdArgs *args)
     char send_buf[MAX_NET_BUF_LEN] = {0};
     char *gpgga_msg = NULL;
 
-    ret = xQueueReceive((key_t)KEY_UB482_GPGGA_MSG,(void **)&gpgga_msg);
+    ret = xQueueReceive((key_t)KEY_UB482_GPGGA_MSG,(void **)&gpgga_msg,0);
     if(ret == -1)
     {
         return -1;

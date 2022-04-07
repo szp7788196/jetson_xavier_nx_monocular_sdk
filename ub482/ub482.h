@@ -62,24 +62,7 @@ struct Ub482GnssData
 
 extern enum PositionVelocityType gnssState;
 
+
 void *thread_ub482(void *arg);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif

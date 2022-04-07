@@ -36,6 +36,7 @@ struct Ui3240Config
     int image_left;                         //左边距
     int image_top;                          //上边距
     unsigned short frame_num;               //缓冲区数量
+    unsigned short image_heap_depth;        //提供给算法模块的堆深度
     char **frame_buf;                       //帧缓冲区
     int *frame_buf_id;                      //帧缓冲区id
     unsigned int frame_buf_size;            //缓冲区大小
@@ -67,25 +68,7 @@ struct Ui3240Config
 };
 
 
-
 void *thread_ui3240(void *arg);
 void printUi3240Config(struct Ui3240Config *config);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif

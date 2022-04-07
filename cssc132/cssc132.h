@@ -199,6 +199,7 @@ struct Cssc132Config
     unsigned char led_strobe_enable;                                                //使能灯光同步信号
     unsigned char yuv_sequence;                                                     //摄像头的yuv顺序
     unsigned short frame_num;                                                       //缓冲区数量
+    unsigned short image_heap_depth;                                                //提供给算法模块的堆深度
     double trigger_frame_rate;                                                      //外部触发帧率
     struct FrameBuffer *frame_buf;                                                  //帧缓冲区
     unsigned short capture_timeout;                                                 //获取图像超时ms
@@ -206,25 +207,6 @@ struct Cssc132Config
 };
 
 
-
 void *thread_cssc132(void *arg);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif

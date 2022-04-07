@@ -26,15 +26,6 @@
 #define IOC_LED_MAX_NUM                 11
 
 
-
-
-
-
-
 void *thread_led(void *config);
-
-
-
-
 
 #endif

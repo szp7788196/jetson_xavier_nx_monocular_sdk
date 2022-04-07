@@ -8,6 +8,8 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include "sync_module.h"
+#include "mpu9250.h"
 
 
 
@@ -15,8 +17,9 @@
 #define KEY_NTRIP_RTCM_MSG              1001
 #define KEY_FRAME_RATE_MSG          	1002
 #define KEY_UB482_TIME_STAMP_MSG    	1003
-#define KEY_SYNC_CAM_COUNTER_MSG    	1004
-#define KEY_VIDEO_IMAGE_COUNTER_MSG    	1005
+#define KEY_SYNC_CAM_TIME_STAMP_MSG    	1004
+#define KEY_CAMERA_RESET_MSG			1005
+#define KEY_SYNC_MODULE_RESET_MSG		1006
 
 #define NTRIP_RTCM_MSG_MAX_LEN          1024
 
@@ -66,6 +69,34 @@ struct ImageBuffer
 {
     char *image;
     unsigned int size;
+	unsigned int counter;
+};
+
+struct ImageHeapUnit
+{
+	struct ImageBuffer *image;
+	struct SyncCamTimeStamp *time_stamp;
+};
+
+struct ImageHeap
+{
+	struct ImageHeapUnit **heap;
+	unsigned char get_ptr;
+	unsigned char put_ptr;
+};
+
+struct ImuAdis16505Heap
+{
+	struct SyncImuData **heap;
+	unsigned char get_ptr;
+	unsigned char put_ptr;
+};
+
+struct ImuMpu9250Heap
+{
+	struct Mpu9250SampleData **heap;
+	unsigned char get_ptr;
+	unsigned char put_ptr;
 };
 
 
@@ -173,6 +204,14 @@ static const unsigned int tbl_CRC24Q[] =
     0x42FA2F,0xC4B6D4,0xC82F22,0x4E63D9,0xD11CCE,0x575035,0x5BC9C3,0xDD8538
 };
 
+extern struct ImageHeap imageHeap;
+extern struct ImuAdis16505Heap imuAdis16505Heap;
+extern struct ImuMpu9250Heap imuMpu9250Heap;
+
+extern pthread_mutex_t mutexImageHeap;
+extern pthread_mutex_t mutexImuAdis16505Heap;
+extern pthread_cond_t condImageHeap;
+
 unsigned int CRC32(unsigned char *buf, unsigned int size);
 unsigned short CalCheckSum(unsigned char *buf, unsigned short len);
 unsigned char CalCheckOr(unsigned char *buf, unsigned short len);
@@ -186,6 +225,12 @@ int my_toupper(int ch);
 void HexToStr(char *pbDest, unsigned char *pbSrc, unsigned short len);
 void StrToHex(unsigned char *pbDest, char *pbSrc, unsigned short len);
 int xQueueSend(key_t queue_key,void *msg_to_queue);
-int xQueueReceive(key_t queue_key,void **msg_from_queue);
+int xQueueReceive(key_t queue_key,void **msg_from_queue,unsigned char block);
+void freeImageHeap(unsigned short depth);
+int allocateImageHeap(unsigned short depth,unsigned short image_size);
+void freeImuAdis16505Heap(unsigned short depth);
+int allocateImuAdis16505Heap(unsigned short depth);
+void freeImuMpu9250Heap(unsigned short depth);
+int allocateImuMpu9250Heap(unsigned short depth);
 
 #endif

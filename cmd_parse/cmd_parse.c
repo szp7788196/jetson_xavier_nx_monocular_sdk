@@ -3,7 +3,7 @@
 struct CmdArgs cmdArgs;
 
 #define LONG_OPT(a) a
-#define ARGOPT "ha:b:c:d:e:f:g:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:J:K:L:"
+#define ARGOPT "ha:b:c:d:e:f:g:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:J:K:L:M:N:O:P:"
 
 static struct option opts[] = 
 {
@@ -45,6 +45,10 @@ static struct option opts[] =
     { "usb_cam_def",        required_argument, 0, 'J'},
     { "usb_cam_user",       required_argument, 0, 'K'},
     { "mipi_cam_user",      required_argument, 0, 'L'},
+    { "camera_module",      required_argument, 0, 'M'},
+    { "imu_heap_depth",     required_argument, 0, 'N'},
+    { "sync_heap_depth",    required_argument, 0, 'O'},
+    { "image_heap_depth",   required_argument, 0, 'P'},
     { 0,                    0,                 0,  0 }
 };
 
@@ -92,6 +96,10 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
     args->usb_cam_def_conf_file     = "./config/ids_default_config.ini";
     args->usb_cam_user_conf_file    = "./config/ids_user_config.ini";
     args->mipi_cam_user_conf_file   = "./config/cssc132_user_config.ini";
+    args->camera_module             = 0;
+    args->imu_heap_depth            = 4;
+    args->sync_heap_depth           = 4;
+    args->image_heap_depth          = 4;
 
     help = 0;
 
@@ -653,6 +661,58 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 args->mipi_cam_user_conf_file = optarg;
             break;
 
+            case 'M':
+                i = 0;
+                i = strtol(optarg, 0, 10);
+                if(i > 1)
+                {
+                    res = 0;
+                }
+                else
+                {
+                    args->camera_module = i;
+                }
+            break;
+
+            case 'N':
+                i = 0;
+                i = strtol(optarg, 0, 10);
+                if(i > 256)
+                {
+                    res = 0;
+                }
+                else
+                {
+                    args->imu_heap_depth = i;
+                }
+            break;
+
+            case 'O':
+                i = 0;
+                i = strtol(optarg, 0, 10);
+                if(i > 256)
+                {
+                    res = 0;
+                }
+                else
+                {
+                    args->sync_heap_depth = i;
+                }
+            break;
+
+            case 'P':
+                i = 0;
+                i = strtol(optarg, 0, 10);
+                if(i > 256)
+                {
+                    res = 0;
+                }
+                else
+                {
+                    args->image_heap_depth = i;
+                }
+            break;
+
             case 'h': 
                 help = 1;
             break;
@@ -669,48 +729,52 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
     if(!res || help)
     {
         fprintf(stderr,
-        "|===============================================================================|\n"
-        "|********************************help information*******************************|\n"
-        "|===============================================================================|\n"
-        "| -h " LONG_OPT("--help            ") "help information                                         |\n"
-        "| -a " LONG_OPT("--server          ") "the ntrip server name or address                         |\n"
-        "| -b " LONG_OPT("--port            ") "the ntrip port number(default 8002)                      |\n"
-        "| -c " LONG_OPT("--mount_point     ") "the requested data set or sourcetable filtering criteria |\n"
-        "| -d " LONG_OPT("--user_name       ") "the ntrip user name                                      |\n"
-        "| -e " LONG_OPT("--password        ") "the ntrip login password                                 |\n"
-        "| -f " LONG_OPT("--serial1         ") "serial port1 for set gnss module                         |\n"
-        "| -g " LONG_OPT("--baudrate1       ") "baudrate for serial port1                                |\n"
-        "| -i " LONG_OPT("--databits1       ") "databits for serial port1                                |\n"
-        "| -j " LONG_OPT("--stopbits1       ") "stopbits for serial port1                                |\n"
-        "| -k " LONG_OPT("--parity1         ") "parity   for serial port1                                |\n"
-        "| -l " LONG_OPT("--protocol1       ") "protocol for serial port1                                |\n"
-        "| -m " LONG_OPT("--serial2         ") "serial port2 for get gnss module                         |\n"
-        "| -n " LONG_OPT("--baudrate2       ") "baudrate for serial port2                                |\n"
-        "| -o " LONG_OPT("--databits2       ") "databits for serial port2                                |\n"
-        "| -p " LONG_OPT("--stopbits2       ") "stopbits for serial port2                                |\n"
-        "| -q " LONG_OPT("--parity2         ") "parity   for serial port2                                |\n"
-        "| -r " LONG_OPT("--protocol2       ") "protocol for serial port2                                |\n"
-        "| -s " LONG_OPT("--serial3         ") "serial port3 for sync module                             |\n"
-        "| -t " LONG_OPT("--baudrate3       ") "baudrate for serial port3                                |\n"
-        "| -u " LONG_OPT("--databits3       ") "databits for serial port3                                |\n"
-        "| -v " LONG_OPT("--stopbits3       ") "stopbits for serial port3                                |\n"
-        "| -w " LONG_OPT("--parity3         ") "parity   for serial port3                                |\n"
-        "| -x " LONG_OPT("--protocol3       ") "protocol for serial port3                                |\n"
-        "| -y " LONG_OPT("--capture_mode    ") "image capture mmode,0:queue mode;1:event mode            |\n"
-        "| -z " LONG_OPT("--capture_timeout ") "image capture timeout(ms)                                |\n"
-        "| -A " LONG_OPT("--frame_num       ") "camera frame buffer num                                  |\n"
-        "| -B " LONG_OPT("--gyro            ") "gyro   range,0:±250dps;1:±500dps;2:±1000dps;3:±2000dps   |\n"
-        "| -C " LONG_OPT("--accel           ") "accel  range,0:±2g;1:±4g;2:±8g;3:±16g                    |\n"
-        "| -D " LONG_OPT("--sample_rate     ") "sample rate ,4~1000(Hz)                                  |\n"
-        "| -E " LONG_OPT("--read_mode       ") "imu read mode,0:normal;1:interrupt;2:timer;              |\n"
-        "| -F " LONG_OPT("--camera1         ") "mipi camera1 name;                                       |\n"
-        "| -G " LONG_OPT("--camera2         ") "mipi camera2 name;                                       |\n"
-        "| -H " LONG_OPT("--camera1_ctr     ") "mipi camera1 controller name;                            |\n"
-        "| -I " LONG_OPT("--camera2_ctrl    ") "mipi camera2 controller name;                            |\n"
-        "| -J " LONG_OPT("--usb_cam_def     ") "usb  camera default config file name;                    |\n"
-        "| -K " LONG_OPT("--usb_cam_user    ") "usb  camera user    config file name;                    |\n"
-        "| -L " LONG_OPT("--mipi_cam_user   ") "mipi camera default config file name;                    |\n"
-        "|===============================================================================|\n"
+        "|===========================================================================================|\n"
+        "|**************************************help information*************************************|\n"
+        "|===========================================================================================|\n"
+        "| -h " LONG_OPT("--help             ") "help information;                                                   |\n"
+        "| -a " LONG_OPT("--server           ") "the ntrip server name or address;                                   |\n"
+        "| -b " LONG_OPT("--port             ") "the ntrip port number(default 8002);                                |\n"
+        "| -c " LONG_OPT("--mount_point      ") "the requested data set or sourcetable filtering criteria;           |\n"
+        "| -d " LONG_OPT("--user_name        ") "the ntrip user name;                                                |\n"
+        "| -e " LONG_OPT("--password         ") "the ntrip login password;                                           |\n"
+        "| -f " LONG_OPT("--serial1          ") "serial port1 for set gnss module;                                   |\n"
+        "| -g " LONG_OPT("--baudrate1        ") "baudrate for serial port1;                                          |\n"
+        "| -i " LONG_OPT("--databits1        ") "databits for serial port1;                                          |\n"
+        "| -j " LONG_OPT("--stopbits1        ") "stopbits for serial port1;                                          |\n"
+        "| -k " LONG_OPT("--parity1          ") "parity   for serial port1;                                          |\n"
+        "| -l " LONG_OPT("--protocol1        ") "protocol for serial port1;                                          |\n"
+        "| -m " LONG_OPT("--serial2          ") "serial port2 for get gnss module;                                   |\n"
+        "| -n " LONG_OPT("--baudrate2        ") "baudrate for serial port2;                                          |\n"
+        "| -o " LONG_OPT("--databits2        ") "databits for serial port2;                                          |\n"
+        "| -p " LONG_OPT("--stopbits2        ") "stopbits for serial port2;                                          |\n"
+        "| -q " LONG_OPT("--parity2          ") "parity   for serial port2;                                          |\n"
+        "| -r " LONG_OPT("--protocol2        ") "protocol for serial port2;                                          |\n"
+        "| -s " LONG_OPT("--serial3          ") "serial port3 for sync module;                                       |\n"
+        "| -t " LONG_OPT("--baudrate3        ") "baudrate for serial port3;                                          |\n"
+        "| -u " LONG_OPT("--databits3        ") "databits for serial port3;                                          |\n"
+        "| -v " LONG_OPT("--stopbits3        ") "stopbits for serial port3;                                          |\n"
+        "| -w " LONG_OPT("--parity3          ") "parity   for serial port3;                                          |\n"
+        "| -x " LONG_OPT("--protocol3        ") "protocol for serial port3;                                          |\n"
+        "| -y " LONG_OPT("--capture_mode     ") "image capture mode,0:queue mode;1:event mode;(for UI3240)           |\n"
+        "| -z " LONG_OPT("--capture_timeout  ") "image capture timeout(ms);                                          |\n"
+        "| -A " LONG_OPT("--frame_num        ") "camera frame buffer number;                                         |\n"
+        "| -B " LONG_OPT("--gyro             ") "gyro   range,0:±250dps;1:±500dps;2:±1000dps;3:±2000dps;(for mpu9250)|\n"
+        "| -C " LONG_OPT("--accel            ") "accel  range,0:±2g;1:±4g;2:±8g;3:±16g;(for mpu9250)                 |\n"
+        "| -D " LONG_OPT("--sample_rate      ") "sample rate ,4~1000(Hz);(for mpu9250)                               |\n"
+        "| -E " LONG_OPT("--read_mode        ") "imu read mode,0:normal;1:interrupt;2:timer;(for mpu9250)            |\n"
+        "| -F " LONG_OPT("--camera1          ") "mipi camera1 name;                                                  |\n"
+        "| -G " LONG_OPT("--camera2          ") "mipi camera2 name;                                                  |\n"
+        "| -H " LONG_OPT("--camera1_ctr      ") "mipi camera1 controller name;                                       |\n"
+        "| -I " LONG_OPT("--camera2_ctrl     ") "mipi camera2 controller name;                                       |\n"
+        "| -J " LONG_OPT("--usb_cam_def      ") "usb  camera default config file name;                               |\n"
+        "| -K " LONG_OPT("--usb_cam_user     ") "usb  camera user    config file name;                               |\n"
+        "| -L " LONG_OPT("--mipi_cam_user    ") "mipi camera default config file name;                               |\n"
+        "| -M " LONG_OPT("--camera_module    ") "0:usb camera UI3420; 1:csi mipi camera CSSC132;                     |\n"
+        "| -N " LONG_OPT("--imu_heap_depth   ") "imu mpu9250 data heap depth;                                        |\n"
+        "| -O " LONG_OPT("--sync_heap_depth  ") "imu adis16505 data heap depth;                                      |\n"
+        "| -P " LONG_OPT("--image_heap_depth ") "image data heap depth;                                              |\n"
+        "|===========================================================================================|\n"
         );
 
         exit(1);

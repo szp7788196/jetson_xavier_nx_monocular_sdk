@@ -41,6 +41,7 @@ static void initCssc132Config(struct Cssc132Config *config,struct CmdArgs *args)
     }
 
     config->frame_num                                   = args->frame_num;
+    config->image_heap_depth                            = args->image_heap_depth;
     config->trigger_frame_rate                          = 30.0f;
     config->capture_timeout                             = args->capture_timeout;
 }
@@ -114,6 +115,7 @@ static void printCssc132Config(struct Cssc132Config *config)
     printf("| mipi_status.count                           = %d\n",config->mipi_status.count);
     printf("| led_strobe_enable                           = %d\n",config->led_strobe_enable);
     printf("| frame_num                                   = %d\n",config->frame_num);
+    printf("| image_heap_depth                            = %d\n",config->image_heap_depth);
     printf("| trigger_frame_rate                          = %f\n",config->trigger_frame_rate);
     printf("| capture_timeout                             = %d\n",config->capture_timeout);
     printf("|======================= Cssc132Config end ========================\n");
@@ -1840,6 +1842,7 @@ static int reallocateCameraBuffer(struct Cssc132Config *config)
 		}
     }
 
+/*
     config->image_buf.size = fmt.fmt.pix.sizeimage;
 
     if(config->image_buf.image != NULL)
@@ -1856,6 +1859,14 @@ static int reallocateCameraBuffer(struct Cssc132Config *config)
     {
         fprintf(stderr, "%s: malloc config->image_buf.image failed\n",__func__);
         return -EAGAIN;
+    }
+*/
+    freeImageHeap(config->image_heap_depth);
+
+    ret = allocateImageHeap(config->image_heap_depth,fmt.fmt.pix.sizeimage);
+    if(ret != 0)
+    {
+        fprintf(stderr, "%s: allocate image heap failed\n",__func__);
     }
 
     return ret;
@@ -1920,7 +1931,7 @@ static void sendFrameRateMsgToThreadSync(struct Cssc132Config config)
     }
 }
 
-static char *captureImage(struct Cssc132Config config)
+static int captureImage(struct Cssc132Config config,struct ImageBuffer *image_buf)
 {
     int ret = 0;
     fd_set fds;
@@ -1938,12 +1949,12 @@ static char *captureImage(struct Cssc132Config config)
     {
         fprintf(stderr, "%s: select error\n",__func__);
         usleep(1000 * 10);
-        return NULL;
+        return -EPERM;
     }
     else if(ret == 0)
     {
         fprintf(stderr, "%s: select timeout\n",__func__);
-        return NULL;
+        return -EAGAIN;
     }
 
     memset(&buf,0,sizeof(struct v4l2_buffer));
@@ -1955,10 +1966,14 @@ static char *captureImage(struct Cssc132Config config)
     if(ret == -1)
     {
         fprintf(stderr, "%s: ioctl VIDIOC_DQBUF failed\n",__func__);
-        return NULL;
+        return -EPERM;
     }
 
-    memcpy(config.image_buf.image,config.frame_buf[buf.index].start,config.frame_buf[buf.index].length);
+    pthread_mutex_lock(&mutexImageHeap); 
+    memcpy(image_buf->image,config.frame_buf[buf.index].start,config.frame_buf[buf.index].length);
+
+    image_buf->size = config.frame_buf[buf.index].length;
+    pthread_mutex_unlock(&mutexImageHeap);
 
     ret = ioctl(config.camera_fd, VIDIOC_QBUF, &buf);
     if(ret == -1)
@@ -1966,7 +1981,24 @@ static char *captureImage(struct Cssc132Config config)
         fprintf(stderr, "%s: ioctl VIDIOC_QBUF failed\n",__func__);
     }
 
-    return config.image_buf.image;
+    return ret;
+}
+
+static int recvResetMsg(void)
+{
+    int ret = 0;
+    unsigned char *reset = NULL;
+
+    ret = xQueueReceive((key_t)KEY_CAMERA_RESET_MSG,(void **)&reset,0);
+    if(ret == -1)
+    {
+        return -1;
+    }
+
+    free(reset);
+    reset = NULL;
+
+    return ret;
 }
 
 void *thread_cssc132(void *arg)
@@ -1974,7 +2006,6 @@ void *thread_cssc132(void *arg)
     int ret = 0;
     struct CmdArgs *args = (struct CmdArgs *)arg;
     enum CameraState camera_state = INIT_CONFIG;
-    char *frame_buf = NULL;
 
     while(1)
     {
@@ -2062,11 +2093,13 @@ void *thread_cssc132(void *arg)
             break;
 
             case (unsigned char)CAPTURE_IMAGE:          //采集图像
-                frame_buf = captureImage(cssc132Config);
-                if(frame_buf != NULL)
+                ret = captureImage(cssc132Config,imageHeap.heap[imageHeap.put_ptr]->image);
+                if(ret == 0)
                 {
-                    fprintf(stderr, "%s: capture iamge success\n",__func__);
-                    frame_buf = NULL;
+                    pthread_cond_signal(&condImageHeap);
+
+                    fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
+                            __func__,imageHeap.heap[imageHeap.put_ptr]->image->counter,imageHeap.put_ptr);
                 }
             break;
 
@@ -2079,6 +2112,12 @@ void *thread_cssc132(void *arg)
             default:
                 camera_state = DISCONNECT_CAMERA;
             break;
+        }
+
+        ret = recvResetMsg();
+        if(ret == 0)
+        {
+            camera_state = DISCONNECT_CAMERA;
         }
     }
 }

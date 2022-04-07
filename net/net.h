@@ -25,14 +25,9 @@ enum ConnectState
 	
 };
 
-
 extern enum ConnectState connectState;
 
+
 void *thread_net(void *arg);
-
-
-
-
-
 
 #endif

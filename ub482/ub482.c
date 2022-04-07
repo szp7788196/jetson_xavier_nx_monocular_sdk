@@ -230,7 +230,7 @@ static int recvNtripDataMsgAndWriteToUb482(void)
     unsigned short msg_len = 0;
     struct NormalMsg *ntrip_rtcm_msg = NULL;
 
-    ret = xQueueReceive((key_t)KEY_NTRIP_RTCM_MSG,(void **)&ntrip_rtcm_msg);
+    ret = xQueueReceive((key_t)KEY_NTRIP_RTCM_MSG,(void **)&ntrip_rtcm_msg,0);
     if(ret == -1)
     {
         return -1;

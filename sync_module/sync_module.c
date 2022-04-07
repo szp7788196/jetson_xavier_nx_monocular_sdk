@@ -6,9 +6,8 @@
 // len = 3 + 8 + 8 + 4 = 23
 static enum SyncState syncState = SET_STOP;
 static struct Serial serialSync;
-static struct SyncImuData syncImuData;
-static struct SyncCamTimeStamp syncCamTimeStamp;
 static double frameRate = 30.0f;
+static unsigned short syncHeapDepth = 0;
 
 
 static int sync_serial_init(struct CmdArgs *args)
@@ -97,7 +96,7 @@ static int syncSetTimeStamp(double t)
     return ret;
 }
 
-static int syncParseImuData(unsigned char *inbuf)
+static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data)
 {
     int ret = 0;
     unsigned short check_sum_cal = 0;
@@ -120,112 +119,103 @@ static int syncParseImuData(unsigned char *inbuf)
         return -1;
     }
 
-    syncImuData.counter = ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 0))) << 24) & 0xFF000000) + 
-                          ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 1))) << 16) & 0x00FF0000) + 
-                          ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 2))) <<  8) & 0x0000FF00) + 
-                          ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 3))) <<  0) & 0x000000FF);
+    imu_data->counter = ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 0))) << 24) & 0xFF000000) + 
+                        ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 1))) << 16) & 0x00FF0000) + 
+                        ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 2))) <<  8) & 0x0000FF00) + 
+                        ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 3))) <<  0) & 0x000000FF);
     if(last_counter > 0)
     {
-        if(syncImuData.counter - last_counter != 1)
+        if(imu_data->counter - last_counter != 1)
         {
             fprintf(stderr, "%s: imu data counter err,is not continous\n",__func__);
         }
     }
 
-    last_counter = syncImuData.counter;
+    last_counter = imu_data->counter;
 
     time_stamp = ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 3))) << 24) & 0xFF000000) + 
                  ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 2))) << 16) & 0x00FF0000) + 
                  ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 1))) <<  8) & 0x0000FF00) + 
                  ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 0))) <<  0) & 0x000000FF);
 
-    syncImuData.time_stamp_local = (double)time_stamp / (double)FPGA_CLOCK_HZ;
+    imu_data->time_stamp_local = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
     time_stamp = ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 3))) << 24) & 0xFF000000) + 
                  ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 2))) << 16) & 0x00FF0000) + 
                  ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 1))) <<  8) & 0x0000FF00) + 
                  ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) <<  0) & 0x000000FF);
 
-    syncImuData.time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
+    imu_data->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
-    syncImuData.gx = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 2))) << 24) & 0xFF000000) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 3))) << 16) & 0x00FF0000) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 0))) <<  8) & 0x0000FF00) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 1))) <<  0) & 0x000000FF);
+    imu_data->gx = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 2))) << 24) & 0xFF000000) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 3))) << 16) & 0x00FF0000) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 0))) <<  8) & 0x0000FF00) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 1))) <<  0) & 0x000000FF);
 
-    syncImuData.gy = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 6))) << 24) & 0xFF000000) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 7))) << 16) & 0x00FF0000) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 4))) <<  8) & 0x0000FF00) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 5))) <<  0) & 0x000000FF);
+    imu_data->gy = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 6))) << 24) & 0xFF000000) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 7))) << 16) & 0x00FF0000) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 4))) <<  8) & 0x0000FF00) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 5))) <<  0) & 0x000000FF);
 
-    syncImuData.gz = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 10))) << 24) & 0xFF000000) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 11))) << 16) & 0x00FF0000) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD +  8))) <<  8) & 0x0000FF00) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD +  9))) <<  0) & 0x000000FF);
+    imu_data->gz = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 10))) << 24) & 0xFF000000) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 11))) << 16) & 0x00FF0000) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD +  8))) <<  8) & 0x0000FF00) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD +  9))) <<  0) & 0x000000FF);
 
-    syncImuData.ax = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 14))) << 24) & 0xFF000000) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 15))) << 16) & 0x00FF0000) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 12))) <<  8) & 0x0000FF00) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 13))) <<  0) & 0x000000FF);
+    imu_data->ax = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 14))) << 24) & 0xFF000000) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 15))) << 16) & 0x00FF0000) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 12))) <<  8) & 0x0000FF00) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 13))) <<  0) & 0x000000FF);
 
-    syncImuData.ay = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 18))) << 24) & 0xFF000000) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 19))) << 16) & 0x00FF0000) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 16))) <<  8) & 0x0000FF00) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 17))) <<  0) & 0x000000FF);
+    imu_data->ay = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 18))) << 24) & 0xFF000000) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 19))) << 16) & 0x00FF0000) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 16))) <<  8) & 0x0000FF00) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 17))) <<  0) & 0x000000FF);
 
-    syncImuData.az = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 22))) << 24) & 0xFF000000) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 23))) << 16) & 0x00FF0000) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 20))) <<  8) & 0x0000FF00) + 
-                     ((((int)(*(inbuf + POS_IMU_PAYLOAD + 21))) <<  0) & 0x000000FF);
+    imu_data->az = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 22))) << 24) & 0xFF000000) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 23))) << 16) & 0x00FF0000) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 20))) <<  8) & 0x0000FF00) + 
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 21))) <<  0) & 0x000000FF);
 
-    syncImuData.temperature = ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 24))) << 8) & 0xFF00) + 
-                              ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 25))) << 0) & 0x00FF);
-
-    return ret;
-}
-
-static int syncSendCamCounterToMainThread(unsigned int counter)
-{
-    int ret = 0;
+    imu_data->temperature = ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 24))) << 8) & 0xFF00) + 
+                            ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 25))) << 0) & 0x00FF);
 
     return ret;
 }
 
-static int syncParseCamTimeStamp(unsigned char *inbuf)
+static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *cam_time_stamp)
 {
     int ret = 0;
     static unsigned int last_counter = 0;
     unsigned int time_stamp = 0;
 
-    syncCamTimeStamp.counter = ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 0))) << 24) & 0xFF000000) + 
+    cam_time_stamp->counter = ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 0))) << 24) & 0xFF000000) + 
                                ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 1))) << 16) & 0x00FF0000) + 
                                ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 2))) <<  8) & 0x0000FF00) + 
                                ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 3))) <<  0) & 0x000000FF);
     if(last_counter > 0)
     {
-        if(syncCamTimeStamp.counter - last_counter != 1)
+        if(cam_time_stamp->counter - last_counter != 1)
         {
             fprintf(stderr, "%s: camare time stamp counter err,is not continous\n",__func__);
         }
     }
 
-    last_counter = syncCamTimeStamp.counter;
+    last_counter = cam_time_stamp->counter;
 
     time_stamp = ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 3))) << 24) & 0xFF000000) + 
                  ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 2))) << 16) & 0x00FF0000) + 
                  ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 1))) <<  8) & 0x0000FF00) + 
                  ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 0))) <<  0) & 0x000000FF);
 
-    syncCamTimeStamp.time_stamp_local = (double)time_stamp / (double)FPGA_CLOCK_HZ;
+    cam_time_stamp->time_stamp_local = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
     time_stamp = ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 3))) << 24) & 0xFF000000) + 
                  ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 2))) << 16) & 0x00FF0000) + 
                  ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 1))) <<  8) & 0x0000FF00) + 
                  ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) <<  0) & 0x000000FF);
 
-    syncCamTimeStamp.time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
-
-    ret = syncSendCamCounterToMainThread(syncCamTimeStamp.counter);
+    cam_time_stamp->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
     return ret;
 }
@@ -272,18 +262,42 @@ static void syncRecvAndParseMessage(void)
                     // do parse...
                     if(recv_buf[head_pos + 2] == 0x00)
                     {
-                        ret = syncParseImuData(&recv_buf[head_pos]);
+                        pthread_mutex_lock(&mutexImuAdis16505Heap); 
+                        ret = syncParseImuData(&recv_buf[head_pos],imuAdis16505Heap.heap[imuAdis16505Heap.put_ptr]);
                         if(ret != 0)
                         {
                             fprintf(stderr, "%s: parse imu data failed\n",__func__);
                         }
+                        else
+                        {
+                            imuAdis16505Heap.put_ptr ++;
+                            if(imuAdis16505Heap.put_ptr >= syncHeapDepth)
+                            {
+                                imuAdis16505Heap.put_ptr = 0;
+                            }
+                        }
+                        pthread_mutex_unlock(&mutexImuAdis16505Heap);
                     }
                     else if(recv_buf[head_pos + 2] == 0x01)
                     {
-                        ret = syncParseCamTimeStamp(&recv_buf[head_pos]);
-                        if(ret != 0)
+                        struct SyncCamTimeStamp *time_stamp = NULL;
+
+                        time_stamp = (struct SyncCamTimeStamp *)malloc(sizeof(struct SyncCamTimeStamp));
+                        if(time_stamp != NULL)
                         {
-                            fprintf(stderr, "%s: parse camera time stamp failed\n",__func__);
+                            ret = syncParseCamTimeStamp(&recv_buf[head_pos],time_stamp);
+                            if(ret != 0)
+                            {
+                                fprintf(stderr, "%s: parse camera time stamp failed\n",__func__);
+                            }
+                            else
+                            {
+                                ret = xQueueSend((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,time_stamp);
+                                if(ret == -1)
+                                {
+                                    fprintf(stderr, "%s: send sync camera time stamp queue msg failed\n",__func__);
+                                }
+                            }
                         }
                     }
 
@@ -324,7 +338,7 @@ static int recvFrameRateMsg(void)
     int ret = 0;
     double *frame_rate;
 
-    ret = xQueueReceive((key_t)KEY_FRAME_RATE_MSG,(void **)&frame_rate);
+    ret = xQueueReceive((key_t)KEY_FRAME_RATE_MSG,(void **)&frame_rate,0);
     if(ret == -1)
     {
         return -1;
@@ -344,9 +358,24 @@ static int recvFrameRateMsg(void)
     free(frame_rate);
     frame_rate = NULL;
 
-    syncState = SET_X_HZ;
-
     return 0;
+}
+
+static int recvResetMsg(void)
+{
+    int ret = 0;
+    unsigned char *reset = NULL;
+
+    ret = xQueueReceive((key_t)KEY_SYNC_MODULE_RESET_MSG,(void **)&reset,0);
+    if(ret == -1)
+    {
+        return -1;
+    }
+
+    free(reset);
+    reset = NULL;
+
+    return ret;
 }
 
 static int recvUb482TimeStampAndSendToSyncModule(void)
@@ -356,7 +385,7 @@ static int recvUb482TimeStampAndSendToSyncModule(void)
     static double last_time_stamp = 0.0f;
     double *ub482_time_stamp = NULL;
 
-    ret = xQueueReceive((key_t)KEY_UB482_TIME_STAMP_MSG,(void **)&ub482_time_stamp);
+    ret = xQueueReceive((key_t)KEY_UB482_TIME_STAMP_MSG,(void **)&ub482_time_stamp,0);
     if(ret == -1)
     {
         return -1;
@@ -393,6 +422,8 @@ void *thread_sync(void *arg)
     int ret = 0;
     struct CmdArgs *args = (struct CmdArgs *)arg;
 
+    syncHeapDepth = args->sync_heap_depth;
+
     ret = sync_serial_init(args);
     if(ret != 0)
     {
@@ -420,17 +451,24 @@ void *thread_sync(void *arg)
             break;
 
             case (unsigned char)SET_X_HZ:
-
                 ret = syncSetCamTrigFreq((unsigned short)(frameRate + 0.5f));
                 if(ret >= 0)
                 {
                     syncState = RUNNING;
                 }
-
             break;
 
             case (unsigned char)RUNNING:
-                recvFrameRateMsg();                         //接收帧率消息队列
+                ret = recvFrameRateMsg();                   //接收帧率消息队列
+                if(ret == 0)
+                {
+                    syncState = SET_X_HZ;
+                }
+                ret = recvResetMsg();                       //接收复位消息队列
+                if(ret == 0)
+                {
+                    syncState = SET_STOP;
+                }
                 recvUb482TimeStampAndSendToSyncModule();    //接收UB482时间戳并发送至同步模块
                 syncRecvAndParseMessage();                  //接收并解析同步模块的数据
             break;

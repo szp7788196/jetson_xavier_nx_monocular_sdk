@@ -77,23 +77,4 @@ int SerialInit(struct Serial *sn,
 int SerialRead(struct Serial *sn, char *buffer, size_t size);
 int SerialWrite(struct Serial *sn, const char *buffer, size_t size);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif

@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <sys/ioctl.h>
 #include "cmd_parse.h"
+#include "common.h"
 
 
 /* 定义设备类型 */
@@ -47,10 +48,6 @@ struct Mpu9250Config
 };
 
 
-
 void *thread_mpu9250(void *config);
-
-
-
 
 #endif

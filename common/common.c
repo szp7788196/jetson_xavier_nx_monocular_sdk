@@ -1,5 +1,12 @@
 #include "common.h"
 
+struct ImageHeap imageHeap = {NULL,0,0};
+struct ImuAdis16505Heap imuAdis16505Heap = {NULL,0,0};
+struct ImuMpu9250Heap imuMpu9250Heap = {NULL,0,0};
+
+pthread_mutex_t mutexImageHeap;
+pthread_mutex_t mutexImuAdis16505Heap;
+pthread_cond_t condImageHeap;
 
 unsigned int CRC32(unsigned char *buf, unsigned int size)
 {
@@ -352,7 +359,7 @@ int xQueueSend(key_t queue_key,void *msg_to_queue)
 	return ret;
 }
 
-int xQueueReceive(key_t queue_key,void **msg_from_queue)
+int xQueueReceive(key_t queue_key,void **msg_from_queue,unsigned char block)
 {
 	int ret = 0;
 	int msg_id = -1;
@@ -368,7 +375,15 @@ int xQueueReceive(key_t queue_key,void **msg_from_queue)
 
 	memset(&msg,0,sizeof(struct QueueMsg));
 
-	ret = msgrcv(msg_id,&msg,sizeof(msg.mtext),1,IPC_NOWAIT);
+	if(block != 0)
+	{
+		ret = msgrcv(msg_id,&msg,sizeof(msg.mtext),1,0);
+	}
+	else
+	{
+		ret = msgrcv(msg_id,&msg,sizeof(msg.mtext),1,IPC_NOWAIT);
+	}
+	
     if(ret == -1)
     {
         return -1;
@@ -384,4 +399,218 @@ int xQueueReceive(key_t queue_key,void **msg_from_queue)
                                (((long)msg.mtext[7] <<  0) & 0x00000000000000FF));
 
 	return ret;
+}
+
+void freeImageHeap(unsigned short depth)
+{
+	int i = 0;
+
+	if(imageHeap.heap != NULL)
+    {
+        for(i = 0; i < depth; i ++)
+        {
+            if(imageHeap.heap[i] != NULL)
+            {
+                if(imageHeap.heap[i]->image != NULL)
+                {
+                    if(imageHeap.heap[i]->image->image != NULL)
+                    {
+                        free(imageHeap.heap[i]->image->image);
+                        imageHeap.heap[i]->image->image = NULL;
+                    }
+
+                    free(imageHeap.heap[i]->image);
+                    imageHeap.heap[i]->image = NULL;
+                }
+
+				if(imageHeap.heap[i]->time_stamp != NULL)
+                {
+                    free(imageHeap.heap[i]->time_stamp);
+                    imageHeap.heap[i]->time_stamp = NULL;
+                }
+
+                free(imageHeap.heap[i]);
+                imageHeap.heap[i] = NULL;
+            }
+        }
+
+        imageHeap.heap = NULL;
+        imageHeap.put_ptr = 0;
+        imageHeap.get_ptr = 0;
+    }
+}
+
+int allocateImageHeap(unsigned short depth,unsigned short image_size)
+{
+	int i = 0;
+
+	if(imageHeap.heap != NULL)
+	{
+		fprintf(stderr, "%s: imageHeap.heap does not null\n",__func__);
+		return -1;
+	}
+
+	imageHeap.heap = calloc(depth, sizeof(struct ImageHeapUnit));
+
+	if(imageHeap.heap == NULL)
+	{
+		fprintf(stderr, "%s: calloc imageHeap.heap failed\n",__func__);
+		return -1;
+	}
+
+	for(i = 0; i < depth; i ++)
+	{	
+		imageHeap.heap[i] = NULL;
+		imageHeap.heap[i] = (struct ImageHeapUnit *)malloc(sizeof(struct ImageHeapUnit));
+		if(imageHeap.heap[i] == NULL)
+		{
+			fprintf(stderr, "%s: malloc imageHeap.heap[%d] failed\n",__func__,i);
+			return -1;
+		}
+
+		imageHeap.heap[i]->image = NULL;
+		imageHeap.heap[i]->image = (struct ImageBuffer *)malloc(sizeof(struct ImageBuffer));
+		if(imageHeap.heap[i]->image == NULL)
+		{
+			fprintf(stderr, "%s: malloc imageHeap.heap[%d]->image failed\n",__func__,i);
+			return -1;
+		}
+
+		memset(imageHeap.heap[i]->image,0,sizeof(struct ImageBuffer));
+
+		imageHeap.heap[i]->image->size = image_size;
+
+		imageHeap.heap[i]->image->image = (char *)malloc(image_size * sizeof(char));
+		if(imageHeap.heap[i]->image->image == NULL)
+		{
+			fprintf(stderr, "%s: malloc imageHeap.heap[%d]->image->image failed\n",__func__,i);
+			return -1;
+		}
+
+		memset(imageHeap.heap[i]->image->image,0,image_size);
+
+		if(imageHeap.heap[i]->time_stamp != NULL)
+		{
+			fprintf(stderr, "%s: imageHeap.heap[%d]->time_stamp does not null\n",__func__,i);
+			return -1;
+		}
+
+		imageHeap.heap[i]->time_stamp = NULL;
+		imageHeap.heap[i]->time_stamp = (struct SyncCamTimeStamp *)malloc(sizeof(struct SyncCamTimeStamp));
+		if(imageHeap.heap[i]->time_stamp == NULL)
+		{
+			fprintf(stderr, "%s: malloc imageHeap.heap[%d]->time_stamp failed\n",__func__,i);
+			return -1;
+		}
+
+		memset(imageHeap.heap[i]->time_stamp,0,sizeof(struct SyncCamTimeStamp));
+	}
+
+	return 0;
+}
+
+void freeImuAdis16505Heap(unsigned short depth)
+{
+	int i = 0;
+
+	if(imuAdis16505Heap.heap != NULL)
+	{
+		for(i = 0; i < depth; i ++)
+		{
+			if(imuAdis16505Heap.heap[i] != NULL)
+			{
+				free(imuAdis16505Heap.heap[i]);
+				imuAdis16505Heap.heap[i] = NULL;
+			}
+		}
+
+		imuAdis16505Heap.heap = NULL;
+        imuAdis16505Heap.put_ptr = 0;
+        imuAdis16505Heap.get_ptr = 0;
+	}
+}
+
+int allocateImuAdis16505Heap(unsigned short depth)
+{
+	int i = 0;
+
+	if(imuAdis16505Heap.heap != NULL)
+	{
+		fprintf(stderr, "%s: imuAdis16505Heap.heap does not null\n",__func__);
+		return -1;
+	}
+
+	imuAdis16505Heap.heap = calloc(depth, sizeof(struct SyncImuData));
+
+	if(imuAdis16505Heap.heap == NULL)
+	{
+		fprintf(stderr, "%s: calloc imuAdis16505Heap.heap failed\n",__func__);
+		return -1;
+	}
+
+	for(i = 0; i < depth; i ++)
+	{
+		imuAdis16505Heap.heap[i] = NULL;
+		imuAdis16505Heap.heap[i] = (struct SyncImuData *)malloc(sizeof(struct SyncImuData));
+		if(imuAdis16505Heap.heap[i] == NULL)
+		{
+			fprintf(stderr, "%s: malloc imuAdis16505Heap.heap[%d] failed\n",__func__,i);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+void freeImuMpu9250Heap(unsigned short depth)
+{
+	int i = 0;
+
+	if(imuMpu9250Heap.heap != NULL)
+	{
+		for(i = 0; i < depth; i ++)
+		{
+			if(imuMpu9250Heap.heap[i] != NULL)
+			{
+				free(imuMpu9250Heap.heap[i]);
+				imuMpu9250Heap.heap[i] = NULL;
+			}
+		}
+
+		imuMpu9250Heap.heap = NULL;
+        imuMpu9250Heap.put_ptr = 0;
+        imuMpu9250Heap.get_ptr = 0;
+	}
+}
+
+int allocateImuMpu9250Heap(unsigned short depth)
+{
+	int i = 0;
+
+	if(imuMpu9250Heap.heap != NULL)
+	{
+		fprintf(stderr, "%s: imuMpu9250Heap.heap does not null\n",__func__);
+		return -1;
+	}
+
+	imuMpu9250Heap.heap = calloc(depth, sizeof(struct Mpu9250SampleData));
+
+	if(imuMpu9250Heap.heap == NULL)
+	{
+		fprintf(stderr, "%s: calloc imuMpu9250Heap.heap failed\n",__func__);
+		return -1;
+	}
+
+	for(i = 0; i < depth; i ++)
+	{
+		imuMpu9250Heap.heap[i] = NULL;
+		imuMpu9250Heap.heap[i] = (struct Mpu9250SampleData *)malloc(sizeof(struct Mpu9250SampleData));
+		if(imuMpu9250Heap.heap[i] == NULL)
+		{
+			fprintf(stderr, "%s: malloc imuMpu9250Heap.heap[%d] failed\n",__func__,i);
+			return -1;
+		}
+	}
+
+	return 0;
 }
