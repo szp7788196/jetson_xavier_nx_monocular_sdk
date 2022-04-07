@@ -8,13 +8,6 @@ static enum SyncState syncState = SET_STOP;
 static struct Serial serialSync;
 static struct SyncImuData syncImuData;
 static struct SyncCamTimeStamp syncCamTimeStamp;
-static struct QueueMsgNormal FrameRateMsg;
-static struct QueueMsgNormal ub482TimeStampMsg;
-static struct QueueMsgNormal syncCamCounterMsg;
-static int FrameRateMsgId = -1;
-static int ub482TimeStampMsgId = -1;
-static int syncCamCounterMsgId = -1;
-static bool autoFrameRate = 0;
 static double frameRate = 30.0f;
 
 
@@ -195,18 +188,6 @@ static int syncSendCamCounterToMainThread(unsigned int counter)
 {
     int ret = 0;
 
-    syncCamCounterMsg.mtype = 1;
-    syncCamCounterMsg.mtext[0] = (char)((counter >> 24) & 0x000000FF);
-    syncCamCounterMsg.mtext[1] = (char)((counter >> 16) & 0x000000FF);
-    syncCamCounterMsg.mtext[2] = (char)((counter >> 16) & 0x000000FF);
-    syncCamCounterMsg.mtext[3] = (char)((counter >> 16) & 0x000000FF);
-
-    ret = msgsnd(syncCamCounterMsgId,&syncCamCounterMsg,sizeof(syncCamCounterMsg.mtext),0);
-    if(ret == -1)
-    {
-        fprintf(stderr, "%s: send syncCamCounterMsg failed\n",__func__);
-    }
-
     return ret;
 }
 
@@ -341,61 +322,29 @@ static void syncRecvAndParseMessage(void)
 static int recvFrameRateMsg(void)
 {
     int ret = 0;
-    unsigned short msg_len = 0;
-    bool auto_frame_rate = 0;
-    double frame_rate;
+    double *frame_rate;
 
-    if(FrameRateMsgId == -1)
-    {
-        fprintf(stderr, "%s: no FrameRateMsgId queue\n",__func__);
-        return -1;
-    }
-
-    ret = msgrcv(FrameRateMsgId,&FrameRateMsg,sizeof(FrameRateMsg.mtext),1,IPC_NOWAIT);
+    ret = xQueueReceive((key_t)KEY_FRAME_RATE_MSG,(void **)&frame_rate);
     if(ret == -1)
     {
         return -1;
     }
 
-    fprintf(stderr, "%s: revc FrameRateMsg queue\n",__func__);
+    fprintf(stderr, "%s: recv frame rate queue msg,frame_rate = %f\n",__func__,*frame_rate);
 
-    msg_len = ((((unsigned short)FrameRateMsg.mtext[0]) << 8) & 0xFF00) + 
-              ((unsigned short)FrameRateMsg.mtext[1] & 0x00FF);
-
-    if(msg_len != 9)
-    {
-        fprintf(stderr, "%s: FrameRateMsg queue len error,len is %d,but should be 9\n",__func__,msg_len);
-        return -1;
-    }
-
-    if(FrameRateMsg.mtext[2] > 1)
-    {
-        fprintf(stderr, "%s: FrameRateMsg queue autoFrameRate error,autoFrameRate is %d,"
-                         "but should be 0 or 1\n",__func__,FrameRateMsg.mtext[2]);
-        return -1;
-    }
-
-    autoFrameRate = (bool)FrameRateMsg.mtext[2];
-
-    memcpy(&frame_rate,&FrameRateMsg.mtext[3],8);
-
-    if(frame_rate < 0 || frame_rate > 120)
+    if(*frame_rate < 0 || *frame_rate > 120)
     {
         fprintf(stderr, "%s: FrameRateMsg queue frame_rate error,frame_rate is %f,"
-                         "but should be more than 0 and less than 120\n",__func__,frame_rate);
+                         "but should be more than 0 and less than 120\n",__func__,*frame_rate);
         return -1;
     }
 
-    frameRate = frame_rate;
+    frameRate = *frame_rate;
 
-    if(auto_frame_rate == 0)
-    {
-        syncState = SET_X_HZ;
-    }
-    else
-    {
-        syncState = SET_STOP;
-    }
+    free(frame_rate);
+    frame_rate = NULL;
+
+    syncState = SET_X_HZ;
 
     return 0;
 }
@@ -403,34 +352,22 @@ static int recvFrameRateMsg(void)
 static int recvUb482TimeStampAndSendToSyncModule(void)
 {
     int ret = 0;
-    unsigned short msg_len = 0;
     static double time_stamp = 0.0f;
     static double last_time_stamp = 0.0f;
+    double *ub482_time_stamp = NULL;
 
-    if(ub482TimeStampMsgId == -1)
-    {
-        fprintf(stderr, "%s: no ub482TimeStampMsgId queue\n",__func__);
-        return -1;
-    }
-
-    ret = msgrcv(ub482TimeStampMsgId,&ub482TimeStampMsg,sizeof(ub482TimeStampMsg.mtext),1,IPC_NOWAIT);
+    ret = xQueueReceive((key_t)KEY_UB482_TIME_STAMP_MSG,(void **)&ub482_time_stamp);
     if(ret == -1)
     {
         return -1;
     }
 
-    fprintf(stderr, "%s: revc ub482TimeStampMsg queue\n",__func__);
+    fprintf(stderr, "%s: recv ub482 time stamp queue msg\n",__func__);
 
-    msg_len = ((((unsigned short)ub482TimeStampMsg.mtext[0]) << 8) & 0xFF00) + 
-              ((unsigned short)ub482TimeStampMsg.mtext[1] & 0x00FF);
+    time_stamp = *ub482_time_stamp;
 
-    if(msg_len != 8)
-    {
-        fprintf(stderr, "%s: ub482TimeStampMsg queue len error,len is %d,but should be 8\n",__func__,msg_len);
-        return -1;
-    }
-
-    memcpy(&time_stamp,&ub482TimeStampMsg.mtext[2],8);
+    free(ub482_time_stamp);
+    ub482_time_stamp = NULL;
 
     if(last_time_stamp != 0)
     {
@@ -451,36 +388,10 @@ static int recvUb482TimeStampAndSendToSyncModule(void)
     return ret;
 }
 
-static void syncCreateMsgQueue(void)
-{
-    FrameRateMsgId = msgget((key_t)KEY_FRAME_RATE_MSG, IPC_CREAT | 0777);
-    if(FrameRateMsgId == -1)
-    {
-        fprintf(stderr, "%s: create FrameRateMsg failed\n",__func__);
-    }
-    ub482TimeStampMsgId = msgget((key_t)KEY_UB482_TIME_STAMP_MSG, IPC_CREAT | 0777);
-    if(ub482TimeStampMsgId == -1)
-    {
-        fprintf(stderr, "%s: create ub482TimeStampMsg failed\n",__func__);
-    }
-
-    syncCamCounterMsgId = msgget((key_t)KEY_SYNC_CAM_COUNTER_MSG, IPC_CREAT | 0777);
-    if(syncCamCounterMsgId == -1)
-    {
-        fprintf(stderr, "%s: create syncCamCounterMsg failed\n",__func__);
-    }
-
-    memset(&FrameRateMsg,0,sizeof(struct QueueMsgNormal));
-    memset(&ub482TimeStampMsg,0,sizeof(struct QueueMsgNormal));
-    memset(&syncCamCounterMsg,0,sizeof(struct QueueMsgNormal));
-}
-
 void *thread_sync(void *arg)
 {
     int ret = 0;
     struct CmdArgs *args = (struct CmdArgs *)arg;
-
-    syncCreateMsgQueue();
 
     ret = sync_serial_init(args);
     if(ret != 0)

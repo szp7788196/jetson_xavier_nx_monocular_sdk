@@ -12,17 +12,17 @@
 
 
 #define KEY_UB482_GPGGA_MSG         	1000
-#define KEY_NTRIP_MSG               	1001
+#define KEY_NTRIP_RTCM_MSG              1001
 #define KEY_FRAME_RATE_MSG          	1002
 #define KEY_UB482_TIME_STAMP_MSG    	1003
 #define KEY_SYNC_CAM_COUNTER_MSG    	1004
 #define KEY_VIDEO_IMAGE_COUNTER_MSG    	1005
 
-#define GPGGA_MSG_MAX_LEN           256
-#define NTRIP_MSG_MAX_LEN           1024
-#define NORMAL_MSG_MAX_LEN          34
+#define NTRIP_RTCM_MSG_MAX_LEN          1024
 
-#define RTCM3PREAMB 0xD3
+#define NOT_SYNC_THRESHOLD      		30
+
+#define RTCM3PREAMB 					0xD3
 
 
 #define CAP(val, min, max)\
@@ -50,22 +50,16 @@ enum CameraState
     DISCONNECT_CAMERA       = 10,            //断开相机链接
 };
 
-struct QueueMsgGpgga 
+struct QueueMsg
 {
     long int mtype;                             //消息类型
-    char mtext[GPGGA_MSG_MAX_LEN];              //消息内容
+    char mtext[8];             					//消息内容
 };
 
-struct QueueMsgNtrip 
+struct NormalMsg
 {
-    long int mtype;                             //消息类型
-    char mtext[NTRIP_MSG_MAX_LEN];              //消息内容
-};
-
-struct QueueMsgNormal 
-{
-    long int mtype;                             //消息类型
-    char mtext[NORMAL_MSG_MAX_LEN];             //消息内容
+	unsigned short len;
+	unsigned char *msg;
 };
 
 struct ImageBuffer
@@ -191,11 +185,7 @@ unsigned short get_str2(unsigned char *source, unsigned char *begin, unsigned sh
 int my_toupper(int ch);
 void HexToStr(char *pbDest, unsigned char *pbSrc, unsigned short len);
 void StrToHex(unsigned char *pbDest, char *pbSrc, unsigned short len);
-
-
-
-
-
-
+int xQueueSend(key_t queue_key,void *msg_to_queue);
+int xQueueReceive(key_t queue_key,void **msg_from_queue);
 
 #endif

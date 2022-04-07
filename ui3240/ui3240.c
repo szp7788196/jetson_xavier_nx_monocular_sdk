@@ -2,10 +2,6 @@
 
 static struct Ui3240Config cameraConfig;
 static struct Ui3240Config userUi3240Config;
-static struct QueueMsgNormal FrameRateMsg;
-static struct QueueMsgNormal ui3240ImageCounterMsg;
-static int FrameRateMsgId = -1;
-static int ui3240ImageCounterMsgId = -1;
 static unsigned int ImageCounter = 0;
 
 static bool isConnected(void)
@@ -2977,73 +2973,27 @@ static void printCameraConfig(struct Ui3240Config *config)
     printf("|===================== Ui3240Config end =====================\n");
 }
 
-void sendFrameRateMsgToThreadSync(void)
+static void sendFrameRateMsgToThreadSync(void)
 {
     int ret = 0;
-    unsigned short msg_len = 9;
-    static unsigned char cnt = 0;
+    double *frame_rate = NULL;
 
-    memset(&FrameRateMsg,0,sizeof(struct QueueMsgNormal));
-
-    FrameRateMsg.mtype = 1;
-    FrameRateMsg.mtext[0] = (char)(((unsigned short)msg_len >> 8) & 0x00FF);
-    FrameRateMsg.mtext[1] = (char)(((unsigned short)msg_len >> 0) & 0x00FF);
-
-    memcpy(&FrameRateMsg.mtext[2],&cameraConfig.auto_frame_rate,1);
-    memcpy(&FrameRateMsg.mtext[3],&cameraConfig.frame_rate,8);
-
-    RE_SEND:
-    ret = msgsnd(FrameRateMsgId,&FrameRateMsg,sizeof(FrameRateMsg.mtext),0);
-    if(ret == -1)
+    if(cameraConfig.auto_frame_rate == true)
     {
-        fprintf(stderr, "%s: send FrameRateMsg failed,failed times: %d\n",__func__,cnt + 1);
+        return;
+    }
 
-        usleep(100 * 1000);
+    frame_rate = (double *)malloc(sizeof(double));
+    if(frame_rate != NULL)
+    {
+        *frame_rate = cameraConfig.frame_rate;
 
-        if((cnt ++) <= 10)
+        ret = xQueueSend((key_t)KEY_FRAME_RATE_MSG,frame_rate);
+        if(ret == -1)
         {
-            goto RE_SEND;
+            fprintf(stderr, "%s: send ui3240 frame rate queue msg failed\n",__func__);
         }
     }
-
-    cnt = 0;
-}
-
-static void ui3240CreateMsgQueue(void)
-{
-    FrameRateMsgId = msgget((key_t)KEY_FRAME_RATE_MSG, IPC_CREAT | 0777);
-    if(FrameRateMsgId == -1)
-    {
-        fprintf(stderr, "%s: create FrameRateMsg failed\n",__func__);
-    }
-
-    ui3240ImageCounterMsgId = msgget((key_t)KEY_VIDEO_IMAGE_COUNTER_MSG, IPC_CREAT | 0777);
-    if(ui3240ImageCounterMsgId == -1)
-    {
-        fprintf(stderr, "%s: create ui3240ImageCounterMsg failed\n",__func__);
-    }
-
-    memset(&FrameRateMsg,0,sizeof(struct QueueMsgNormal));
-    memset(&ui3240ImageCounterMsg,0,sizeof(struct QueueMsgNormal));
-}
-
-static int ui3240SendImageCounterToMainThread(unsigned int counter)
-{
-    int ret = 0;
-
-    ui3240ImageCounterMsg.mtype = 1;
-    ui3240ImageCounterMsg.mtext[0] = (char)((counter >> 24) & 0x000000FF);
-    ui3240ImageCounterMsg.mtext[1] = (char)((counter >> 16) & 0x000000FF);
-    ui3240ImageCounterMsg.mtext[2] = (char)((counter >> 16) & 0x000000FF);
-    ui3240ImageCounterMsg.mtext[3] = (char)((counter >> 16) & 0x000000FF);
-
-    ret = msgsnd(ui3240ImageCounterMsgId,&ui3240ImageCounterMsg,sizeof(ui3240ImageCounterMsg.mtext),0);
-    if(ret == -1)
-    {
-        fprintf(stderr, "%s: send ui3240ImageCounterMsg failed\n",__func__);
-    }
-
-    return ret;
 }
 
 void *thread_ui3240(void *arg)
@@ -3052,8 +3002,6 @@ void *thread_ui3240(void *arg)
     struct CmdArgs *args = (struct CmdArgs *)arg;
     enum CameraState camera_state = INIT_CONFIG;
     char *frame_buf = NULL;
-
-    ui3240CreateMsgQueue();                              //创建消息队列
 
     while(1)
     {
@@ -3111,6 +3059,7 @@ void *thread_ui3240(void *arg)
 
             case (unsigned char)SET_USER_CONFIG:        //设置用户配置
                 setCameraUserConfig();
+                printCameraConfig(&cameraConfig);
                 camera_state = ALLOC_FRAME_BUFFER;
             break;
 
@@ -3149,12 +3098,6 @@ void *thread_ui3240(void *arg)
                     fprintf(stdout,"%s: capture iamge success\n",__func__);
                     frame_buf = NULL;
                     ImageCounter ++;
-
-                    ret = ui3240SendImageCounterToMainThread(ImageCounter);
-                    if(ret != 0)
-                    {
-                        fprintf(stderr,"%s: send ui3240ImageCounterMsg failed\n",__func__);
-                    }
                 }
             break;
 

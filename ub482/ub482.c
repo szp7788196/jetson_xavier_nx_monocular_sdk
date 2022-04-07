@@ -4,12 +4,6 @@ enum PositionVelocityType gnssState = TYPE_NONE;
 static struct Serial serialSet;
 static struct Serial serialGet;
 
-static struct QueueMsgGpgga ub482GpggaMsg;
-static struct QueueMsgNtrip ntripDataMsg;
-static struct QueueMsgNormal ub482TimeStampMsg;
-static int ub482GpggaMsgId = -1;
-static int ntripDataMsgId = -1;
-static int ub482TimeStampMsgId = -1;
 
 struct Ub482GnssData ub482GnssData;
 
@@ -234,27 +228,26 @@ static int recvNtripDataMsgAndWriteToUb482(void)
     int ret = 0;
     char *msg = NULL;
     unsigned short msg_len = 0;
+    struct NormalMsg *ntrip_rtcm_msg = NULL;
 
-    if(ntripDataMsgId == -1)
-    {
-        fprintf(stderr, "%s: no ntripDataMsgId queue\n",__func__);
-        return -1;
-    }
-
-    ret = msgrcv(ntripDataMsgId,&ntripDataMsg,sizeof(ntripDataMsg.mtext),1,IPC_NOWAIT);
+    ret = xQueueReceive((key_t)KEY_NTRIP_RTCM_MSG,(void **)&ntrip_rtcm_msg);
     if(ret == -1)
     {
         return -1;
     }
 
-    fprintf(stdout, "%s: revc ntripDataMsg queue\n",__func__);
+    fprintf(stdout, "%s: recv ntrip rtcm queue msg\n",__func__);
 
-    msg = &ntripDataMsg.mtext[2];
-    msg_len = ((((unsigned short)ntripDataMsg.mtext[0]) << 8) & 0xFF00) + 
-              ((unsigned short)ntripDataMsg.mtext[1] & 0x00FF);
+    msg = (char *)ntrip_rtcm_msg->msg;
+    msg_len = ntrip_rtcm_msg->len;
     fprintf(stdout,"%s: msg_len = %d\n",__func__,msg_len);
 
     ret = SerialWrite(&serialSet, msg, msg_len);
+
+    free(ntrip_rtcm_msg->msg);
+    ntrip_rtcm_msg->msg = NULL;
+    free(ntrip_rtcm_msg);
+    ntrip_rtcm_msg = NULL;
 
     return ret;
 }
@@ -544,20 +537,18 @@ static void getBestAttitudeData(char *msg, int msg_len)
 void sendTimeStampMsgToThreadSync(void)
 {
     int ret = 0;
-    unsigned short msg_len = 8;
+    double *time_stamp = NULL;
 
-    memset(&ub482TimeStampMsg,0,sizeof(struct QueueMsgNormal));
+    time_stamp = (double *)malloc(sizeof(double));
+    if(time_stamp != NULL)
+    {
+        *time_stamp = ub482GnssData.time_stamp;
+    }
 
-    ub482TimeStampMsg.mtype = 1;
-    ub482TimeStampMsg.mtext[0] = (char)(((unsigned short)msg_len >> 8) & 0x00FF);
-    ub482TimeStampMsg.mtext[1] = (char)(((unsigned short)msg_len >> 0) & 0x00FF);
-
-    memcpy(&ub482TimeStampMsg.mtext[2],&ub482GnssData.time_stamp,msg_len);
-
-    ret = msgsnd(ub482TimeStampMsgId,&ub482TimeStampMsg,sizeof(ub482TimeStampMsg.mtext),0);
+    ret = xQueueSend((key_t)KEY_UB482_TIME_STAMP_MSG,time_stamp);
     if(ret == -1)
     {
-        fprintf(stderr, "%s: send ub482TimeStampMsg failed\n",__func__);
+        fprintf(stderr, "%s: send ub482 time stamp queue msg failed\n",__func__);
     }
 }
 
@@ -572,6 +563,7 @@ static int recvAndParseUb482GnssData(void)
     unsigned int check_num_calc = 0;
     char check_buf[10] = {0};
     static char recv_buf[MAX_UB482_BUF_LEN] = {0};
+    char *gpgga_msg = NULL;
 
     memset(recv_buf,0,MAX_UB482_BUF_LEN);
     recv_len = SerialRead(&serialGet, recv_buf, MAX_UB482_BUF_LEN - 1);
@@ -627,15 +619,17 @@ static int recvAndParseUb482GnssData(void)
             {
                 time_sec = tv.tv_sec;
 
-                memset(&ub482GpggaMsg,0,sizeof(struct QueueMsgGpgga));
-                ub482GpggaMsg.mtype = 1;
-                memcpy(&ub482GpggaMsg.mtext,recv_buf,recv_len - 2);
-
-                ret = msgsnd(ub482GpggaMsgId,&ub482GpggaMsg,sizeof(ub482GpggaMsg.mtext),0);
-                if(ret == -1)
+                gpgga_msg = (char *)malloc(recv_len - 2 + 1);
+                if(gpgga_msg != NULL)
                 {
-                    fprintf(stderr, "%s: send ub482GpggaMsg failed\n",__func__);
-                    return -1;
+                    memset(gpgga_msg,0,recv_len - 2 + 1);
+                    memcpy(gpgga_msg,recv_buf,recv_len - 2);
+
+                    ret = xQueueSend((key_t)KEY_UB482_GPGGA_MSG,gpgga_msg);
+                    if(ret == -1)
+                    {
+                        fprintf(stderr, "%s: send gpgga queue msg failed\n",__func__);
+                    }
                 }
             }
         }
@@ -704,35 +698,10 @@ static int recvAndParseUb482GnssData(void)
     return ret;
 }
 
-static void ub482CreateMsgQueue(void)
-{
-    ub482GpggaMsgId = msgget((key_t)KEY_UB482_GPGGA_MSG, IPC_CREAT | 0777);
-    if(ub482GpggaMsgId == -1)
-    {
-        fprintf(stderr, "%s: create ub482GpggaMsg failed\n",__func__);
-    }
-    ntripDataMsgId = msgget((key_t)KEY_NTRIP_MSG, IPC_CREAT | 0777);
-    if(ntripDataMsgId == -1)
-    {
-        fprintf(stderr, "%s: create ntripDataMsg failed\n",__func__);
-    }
-    ub482TimeStampMsgId = msgget((key_t)KEY_UB482_TIME_STAMP_MSG, IPC_CREAT | 0777);
-    if(ub482TimeStampMsgId == -1)
-    {
-        fprintf(stderr, "%s: create ub482TimeStampMsg failed\n",__func__);
-    }
-
-    memset(&ub482GpggaMsg,0,sizeof(struct QueueMsgGpgga));
-    memset(&ntripDataMsg,0,sizeof(struct QueueMsgNtrip));
-    memset(&ub482TimeStampMsg,0,sizeof(struct QueueMsgNormal));
-}
-
 void *thread_ub482(void *arg)
 {
     int ret = 0;
     struct CmdArgs *args = (struct CmdArgs *)arg;
-
-    ub482CreateMsgQueue();                          //创建消息队列
 
     ret = ub482_serial_init(args);                  //初始化并打开串口
     if(ret != 0)

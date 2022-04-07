@@ -1897,6 +1897,29 @@ static int startCaptureImage(struct Cssc132Config config)
     return ret;
 }
 
+static void sendFrameRateMsgToThreadSync(struct Cssc132Config config)
+{
+    int ret = 0;
+    double *frame_rate = NULL;
+
+    if(config.stream_mode != 2)
+    {
+        return;
+    }
+
+    frame_rate = (double *)malloc(sizeof(double));
+    if(frame_rate != NULL)
+    {
+        *frame_rate = config.trigger_frame_rate;
+
+        ret = xQueueSend((key_t)KEY_FRAME_RATE_MSG,frame_rate);
+        if(ret == -1)
+        {
+            fprintf(stderr, "%s: send cssc132 frame rate queue msg failed\n",__func__);
+        }
+    }
+}
+
 static char *captureImage(struct Cssc132Config config)
 {
     int ret = 0;
@@ -2019,7 +2042,7 @@ void *thread_cssc132(void *arg)
                 }
                 else
                 {
-//                    sendFrameRateMsgToThreadSync();
+                    sendFrameRateMsgToThreadSync(cssc132Config);
 
                     camera_state = START_CAPTURE;
                 }

@@ -311,3 +311,77 @@ void StrToHex(unsigned char *pbDest, char *pbSrc, unsigned short len)
 		pbDest[i] = s1 * 16 + s2;
 	}
 }
+
+int xQueueSend(key_t queue_key,void *msg_to_queue)
+{
+	int ret = 0;
+	unsigned char i = 0;
+	int msg_id = -1;
+	struct QueueMsg msg;
+
+	msg_id = msgget(queue_key, IPC_CREAT | 0777);
+
+	if(msg_id == -1)
+	{
+		fprintf(stderr, "%s: create queue msg id failed\n",__func__);
+		return -1;
+	}
+
+	memset(&msg,0,sizeof(struct QueueMsg));
+
+	if(msg_to_queue == NULL)
+	{
+		fprintf(stderr, "%s: the msg to be added cannot be null\n",__func__);
+		return -1;
+	}
+
+	msg.mtype = 1;
+
+	for(i = 0; i < 8; i ++)
+	{
+		msg.mtext[i] = ((((long)msg_to_queue) >> (64 - (i + 1) * 8)) & 0x00000000000000FF);
+	}
+
+	ret = msgsnd(msg_id,&msg,sizeof(msg.mtext),0);
+	if(ret == -1)
+	{
+		fprintf(stderr, "%s: send msg to queue failed\n",__func__);
+		return -1;
+	}
+
+	return ret;
+}
+
+int xQueueReceive(key_t queue_key,void **msg_from_queue)
+{
+	int ret = 0;
+	int msg_id = -1;
+	struct QueueMsg msg;
+
+	msg_id = msgget(queue_key, IPC_CREAT | 0777);
+
+	if(msg_id == -1)
+	{
+		fprintf(stderr, "%s: create queue msg id failed\n",__func__);
+		return -1;
+	}
+
+	memset(&msg,0,sizeof(struct QueueMsg));
+
+	ret = msgrcv(msg_id,&msg,sizeof(msg.mtext),1,IPC_NOWAIT);
+    if(ret == -1)
+    {
+        return -1;
+    }
+
+	*msg_from_queue = (void *)((((long)msg.mtext[0] << 56) & 0xFF00000000000000) + 
+                               (((long)msg.mtext[1] << 48) & 0x00FF000000000000) + 
+                               (((long)msg.mtext[2] << 40) & 0x0000FF0000000000) + 
+                               (((long)msg.mtext[3] << 32) & 0x000000FF00000000) + 
+                               (((long)msg.mtext[4] << 24) & 0x00000000FF000000) + 
+                               (((long)msg.mtext[5] << 16) & 0x0000000000FF0000) + 
+                               (((long)msg.mtext[6] <<  8) & 0x000000000000FF00) + 
+                               (((long)msg.mtext[7] <<  0) & 0x00000000000000FF));
+
+	return ret;
+}

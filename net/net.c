@@ -10,10 +10,6 @@ static const char encodingTable [64] =
 };
 
 enum ConnectState connectState = INITIAL;
-static struct QueueMsgGpgga ub482GpggaMsg;
-static struct QueueMsgNtrip ntripDataMsg;
-static int ub482GpggaMsgId = -1;
-static int ntripDataMsgId = -1;
 static int socketFd = 0;
 
 static int encode(char *buf, int size, const char *user, const char *pwd)
@@ -177,27 +173,23 @@ static int recvUb482GpggaMsgAndSendToNtripServer(struct CmdArgs *args)
 {
     int ret = 0;
     char send_buf[MAX_NET_BUF_LEN] = {0};
+    char *gpgga_msg = NULL;
 
-    if(ub482GpggaMsgId == -1)
-    {
-        fprintf(stderr, "%s: no ub482GpggaMsg queue\n",__func__);
-        return -1;
-    }
-
-    ret = msgrcv(ub482GpggaMsgId,&ub482GpggaMsg,sizeof(ub482GpggaMsg.mtext),1,IPC_NOWAIT);
+    ret = xQueueReceive((key_t)KEY_UB482_GPGGA_MSG,(void **)&gpgga_msg);
     if(ret == -1)
     {
         return -1;
     }
 
-    ret = snprintf(send_buf,MAX_NET_BUF_LEN - 1,"%s\r\n\r\n",ub482GpggaMsg.mtext);
+    ret = snprintf(send_buf,MAX_NET_BUF_LEN - 1,"%s\r\n\r\n",gpgga_msg);
+
+    free(gpgga_msg);
+    gpgga_msg = NULL;
     
     if(ret > 0)
     {
         ret = send(socketFd, send_buf, ret, 0);
     }
-
-    memset(&ub482GpggaMsg,0,sizeof(struct QueueMsgGpgga));
 
     return ret;
 }
@@ -209,6 +201,7 @@ static int recvNtripDataAndSendToNtripMsg(void)
     static int recv_null_cnt = 0;
     char *msg = NULL;
     static char recv_buf[MAX_NET_BUF_LEN] = {0};
+    struct NormalMsg *ntrip_rtcm_msg = NULL;
 
     revc_len = recv(socketFd, recv_buf, MAX_NET_BUF_LEN - 1, 0);
     if(revc_len > 0)
@@ -248,25 +241,27 @@ static int recvNtripDataAndSendToNtripMsg(void)
                 return 0;
             }
 
-            memset(&ntripDataMsg,0,sizeof(struct QueueMsgNtrip));
-
-            if(revc_len > NTRIP_MSG_MAX_LEN - 2)
+            if(revc_len > NTRIP_RTCM_MSG_MAX_LEN)
             {
                 fprintf(stderr, "%s: ntrip data len error\n",__func__);
                 return 0;
             }
 
-            ntripDataMsg.mtype = 1;
-            ntripDataMsg.mtext[0] = (char)(((unsigned short)revc_len >> 8) & 0x00FF);
-            ntripDataMsg.mtext[1] = (char)(((unsigned short)revc_len >> 0) & 0x00FF);
-
-            memcpy(&ntripDataMsg.mtext[2],msg,revc_len);
-
-            ret = msgsnd(ntripDataMsgId,&ntripDataMsg,sizeof(ntripDataMsg.mtext),0);
-            if(ret == -1)
+            ntrip_rtcm_msg = (struct NormalMsg *)malloc(sizeof(struct NormalMsg));
+            if(ntrip_rtcm_msg != NULL)
             {
-                fprintf(stderr, "%s: send ntripDataMsg failed\n",__func__);
-                return 0;
+                ntrip_rtcm_msg->msg = (unsigned char *)malloc(revc_len);
+                if(ntrip_rtcm_msg->msg != NULL)
+                {
+                    ntrip_rtcm_msg->len = revc_len;
+                    memcpy(ntrip_rtcm_msg->msg,msg,revc_len);
+
+                    ret = xQueueSend((key_t)KEY_NTRIP_RTCM_MSG,ntrip_rtcm_msg);
+                    if(ret == -1)
+                    {
+                        fprintf(stderr, "%s: send ntrip rtcm queue msg failed\n",__func__);
+                    }
+                }
             }
         }
     }
@@ -314,23 +309,6 @@ void *thread_net_recv(void *arg)
     }
 }
 
-static void netCreateMsgQueue(void)
-{
-    ub482GpggaMsgId = msgget((key_t)KEY_UB482_GPGGA_MSG, IPC_CREAT | 0777);
-    if(ub482GpggaMsgId == -1)
-    {
-        fprintf(stderr, "%s: create ub482GpggaMsg failed\n",__func__);
-    }
-    ntripDataMsgId = msgget((key_t)KEY_NTRIP_MSG, IPC_CREAT | 0777);
-    if(ntripDataMsgId == -1)
-    {
-        fprintf(stderr, "%s: create ntripDataMsg failed\n",__func__);
-    }
-
-    memset(&ub482GpggaMsg,0,sizeof(struct QueueMsgGpgga));
-    memset(&ntripDataMsg,0,sizeof(struct QueueMsgNtrip));
-}
-
 void *thread_net(void *arg)
 {
     int ret = 0;
@@ -340,8 +318,6 @@ void *thread_net(void *arg)
     struct hostent *he = NULL;
     char *temp_p = NULL;
     long temp_v = 0;
-
-    netCreateMsgQueue();            //创建消息队列
 
     while(1)
     {   
