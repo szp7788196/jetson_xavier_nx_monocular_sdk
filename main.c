@@ -106,6 +106,25 @@ static int syncImageAndCameraTimeStamp(unsigned short depth)
 
     if(first_sync == 1)
     {
+        first_sync = 0;
+
+        do
+        {
+            ret = xQueueReceive((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,(void **)&cam_time_stamp,0);
+            if(ret != -1)
+            {
+                image_counter = cam_time_stamp->counter;
+
+                free(cam_time_stamp);
+                cam_time_stamp = NULL;
+
+                fprintf(stderr, "%s: +\n",__func__);
+            }
+        }
+        while(ret != -1);
+
+        ret = 0;
+
         image_counter = imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter;
     }
     else
@@ -120,12 +139,13 @@ static int syncImageAndCameraTimeStamp(unsigned short depth)
                    imageHeap.heap[imageHeap.put_ptr]->image->counter) >= NOT_SYNC_THRESHOLD)
             {
                 fprintf(stderr, "%s: sync image and camera trigger time stamp failed\n",__func__);
+                first_sync = 1;
                 ret = -1;
             }
         }
         else
         {
-            fprintf(stderr, "%s: sync image and camera trigger time stamp success\n",__func__);
+//            fprintf(stderr, "%s: sync image and camera trigger time stamp success\n",__func__);
         }
     }
 
@@ -185,13 +205,15 @@ int main(int argc, char **argv)
         fprintf(stderr, "%s: parse shell cmd failed\n",__func__);
     }
 
+    clearSystemQueueMsg();
+
     syncAndMutexCreate();
     pthreadCreate(&cmdArgs);
 
     while(1)
     {
         ret = syncImageAndCameraTimeStamp(cmdArgs.image_heap_depth);
-        if(ret != 0)
+        if(ret == -1)
         {
             sendQueueMsgToResetCameraAndSyncModule();
 

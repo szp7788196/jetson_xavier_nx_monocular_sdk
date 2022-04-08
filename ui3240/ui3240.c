@@ -278,12 +278,6 @@ static int disconnectCamera(void)
         cameraConfig.frame_buf = NULL;
     }
 
-    if(cameraConfig.image_buf.image != NULL)
-    {
-        free(cameraConfig.image_buf.image);
-        cameraConfig.image_buf.image = NULL;
-    }
-
     if(cameraConfig.frame_buf_id != NULL)
     {
         free(cameraConfig.frame_buf_id);
@@ -1142,16 +1136,6 @@ static int reallocateCameraBuffer(void)
         cameraConfig.frame_buf = NULL;
     }
 
-/*
-    if(cameraConfig.image_buf.image != NULL)
-    {
-        free(cameraConfig.image_buf.image);
-        cameraConfig.image_buf.image = NULL;
-    }
-*/
-
-    freeImageHeap(cameraConfig.image_heap_depth);
-
     if(cameraConfig.frame_buf_id != NULL)
     {
         free(cameraConfig.frame_buf_id);
@@ -1249,24 +1233,8 @@ static int reallocateCameraBuffer(void)
 
     cameraConfig.frame_buf_size = cam_buffer_pitch * frame_height;
 
-/*
-    if(cameraConfig.image_buf.image == NULL)
-    {
-        cameraConfig.image_buf.image = (char *)malloc(cameraConfig.frame_buf_size);
-        if(cameraConfig.image_buf.image == NULL)
-        {
-            fprintf(stderr, "%s: alloc image buffer failed 1\n",__func__);
-            return IS_NO_SUCCESS;
-        }
+    freeImageHeap(cameraConfig.image_heap_depth);
 
-        cameraConfig.image_buf.size = cameraConfig.frame_buf_size;
-    }
-    else
-    {
-        fprintf(stderr, "%s: alloc image buffer failed 2\n",__func__);
-        return IS_NO_SUCCESS;
-    }
-*/
     is_err = allocateImageHeap(cameraConfig.image_heap_depth,cameraConfig.frame_buf_size);
     if(is_err != IS_SUCCESS)
     {
@@ -2894,8 +2862,6 @@ static int captureImage(struct ImageBuffer *image_buf,unsigned char capture_mode
         fprintf(stderr, "%s: Failed to unlock image buffer,error code is %d\n",__func__,is_err);
     }
 
-    fprintf(stdout, "%s: Get frame from driver OK\n",__func__);
-
     return is_err;
 }
 
@@ -3037,6 +3003,7 @@ static int recvResetMsg(void)
 void *thread_ui3240(void *arg)
 {
     int ret = IS_SUCCESS;
+    static unsigned char capture_failed_cnt = 0;
     struct CmdArgs *args = (struct CmdArgs *)arg;
     enum CameraState camera_state = INIT_CONFIG;
 
@@ -3137,10 +3104,22 @@ void *thread_ui3240(void *arg)
                                    cameraConfig.capture_timeout);
                 if(ret == IS_SUCCESS)
                 {
+                    capture_failed_cnt= 0;
                     pthread_cond_signal(&condImageHeap);
 
                     fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
                             __func__,imageHeap.heap[imageHeap.put_ptr]->image->counter,imageHeap.put_ptr);
+
+
+                }
+                else
+                {
+                    capture_failed_cnt ++;
+
+                    if(capture_failed_cnt >= UI3240_MAX_CAPTURE_FAILED_CNT)
+                    {
+                        camera_state = DISCONNECT_CAMERA;
+                    }
                 }
             break;
 
@@ -3156,7 +3135,7 @@ void *thread_ui3240(void *arg)
         }
 
         ret = recvResetMsg();
-        if(ret == 0)
+        if(ret != -1)
         {
             camera_state = DISCONNECT_CAMERA;
         }

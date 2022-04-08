@@ -97,9 +97,9 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
     args->usb_cam_user_conf_file    = "./config/ids_user_config.ini";
     args->mipi_cam_user_conf_file   = "./config/cssc132_user_config.ini";
     args->camera_module             = 0;
-    args->imu_heap_depth            = 4;
-    args->sync_heap_depth           = 4;
-    args->image_heap_depth          = 4;
+    args->imu_heap_depth            = 8;
+    args->sync_heap_depth           = 8;
+    args->image_heap_depth          = 8;
 
     help = 0;
 

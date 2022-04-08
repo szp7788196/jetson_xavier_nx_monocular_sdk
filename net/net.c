@@ -183,7 +183,7 @@ static int recvUb482GpggaMsgAndSendToNtripServer(struct CmdArgs *args)
 
     free(gpgga_msg);
     gpgga_msg = NULL;
-    
+
     if(ret > 0)
     {
         ret = send(socketFd, send_buf, ret, 0);

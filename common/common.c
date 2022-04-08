@@ -325,6 +325,8 @@ int xQueueSend(key_t queue_key,void *msg_to_queue)
 	unsigned char i = 0;
 	int msg_id = -1;
 	struct QueueMsg msg;
+	struct msqid_ds queue_info;
+	char *pointer = NULL;
 
 	msg_id = msgget(queue_key, IPC_CREAT | 0777);
 
@@ -332,6 +334,23 @@ int xQueueSend(key_t queue_key,void *msg_to_queue)
 	{
 		fprintf(stderr, "%s: create queue msg id failed\n",__func__);
 		return -1;
+	}
+
+	ret = msgctl(msg_id, IPC_STAT, &queue_info);
+	if(ret == -1)
+	{
+		fprintf(stderr, "%s: query queue info failed\n",__func__);
+		return -1;
+	}
+
+	if(queue_info.msg_qnum >= MAX_QUEUE_MSG_NUM)
+	{
+		ret = xQueueReceive(queue_key,(void **)&pointer,0);
+		if(ret == -1)
+		{
+			free(pointer);
+			pointer = NULL;
+		}
 	}
 
 	memset(&msg,0,sizeof(struct QueueMsg));
@@ -440,7 +459,7 @@ void freeImageHeap(unsigned short depth)
     }
 }
 
-int allocateImageHeap(unsigned short depth,unsigned short image_size)
+int allocateImageHeap(unsigned short depth,unsigned int image_size)
 {
 	int i = 0;
 
@@ -489,6 +508,7 @@ int allocateImageHeap(unsigned short depth,unsigned short image_size)
 
 		memset(imageHeap.heap[i]->image->image,0,image_size);
 
+		imageHeap.heap[i]->time_stamp = NULL;
 		if(imageHeap.heap[i]->time_stamp != NULL)
 		{
 			fprintf(stderr, "%s: imageHeap.heap[%d]->time_stamp does not null\n",__func__,i);
@@ -613,4 +633,52 @@ int allocateImuMpu9250Heap(unsigned short depth)
 	}
 
 	return 0;
+}
+
+void clearSystemQueueMsg(void)
+{
+	int ret = 0;
+	char *pointer = NULL;
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_UB482_GPGGA_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_NTRIP_RTCM_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_FRAME_RATE_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_UB482_TIME_STAMP_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_CAMERA_RESET_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_SYNC_MODULE_RESET_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
 }

@@ -159,12 +159,6 @@ static int disconnectCamera(struct Cssc132Config *config)
         free(config->frame_buf);
     }
 
-    if(config->image_buf.image != NULL)
-    {
-        free(config->image_buf.image);
-        config->image_buf.image = NULL;
-    }
-
     close(config->camera_fd);
     close(config->ctrl_fd);
     
@@ -619,7 +613,7 @@ static void queryCssc132Config(struct Cssc132Config *config)
     }
 }
 
-static int loadCssc132UserConfig(char *filename)
+static int loadCssc132UserConfig(char *filename,struct Cssc132Config *config)
 {
     int have_diff = -1;
     FILE *fp;
@@ -753,7 +747,7 @@ static int loadCssc132UserConfig(char *filename)
         if(strlen(temp_buf) != 0 && strlen(temp_buf) < 32)
         {
             temp_f = atof(temp_buf);
-            if(temp_f >= 45.0f && temp_f <= 120.0f)
+            if(temp_f >= 5.0f && temp_f <= 120.0f)
             {
                 usercssc132config.trigger_frame_rate = temp_f;
                 have_diff = 1;
@@ -846,6 +840,8 @@ static int loadCssc132UserConfig(char *filename)
         usercssc132config.current_format.frame_rate =  60;
         usercssc132config.trigger_frame_rate = 60;
     }
+
+    config->trigger_frame_rate = usercssc132config.trigger_frame_rate;
 
     msg = file_buf;
     pos = mystrstr((unsigned char *)file_buf, (unsigned char *)"power_hz", file_len, strlen("power_hz"));
@@ -1842,25 +1838,6 @@ static int reallocateCameraBuffer(struct Cssc132Config *config)
 		}
     }
 
-/*
-    config->image_buf.size = fmt.fmt.pix.sizeimage;
-
-    if(config->image_buf.image != NULL)
-    {
-        fprintf(stderr, "%s: config->image_buf.image dose not null\n",__func__);
-        
-        free(config->image_buf.image);
-        config->image_buf.image = NULL;
-    }
-
-    config->image_buf.image = (char *)malloc(config->image_buf.size * sizeof(char));
-
-    if(config->image_buf.image == NULL)
-    {
-        fprintf(stderr, "%s: malloc config->image_buf.image failed\n",__func__);
-        return -EAGAIN;
-    }
-*/
     freeImageHeap(config->image_heap_depth);
 
     ret = allocateImageHeap(config->image_heap_depth,fmt.fmt.pix.sizeimage);
@@ -2033,7 +2010,7 @@ void *thread_cssc132(void *arg)
             break;
 
             case (unsigned char)LOAD_USER_CONFIG:       //加载用户配置
-                ret = loadCssc132UserConfig(args->mipi_cam_user_conf_file);
+                ret = loadCssc132UserConfig(args->mipi_cam_user_conf_file,&cssc132Config);
                 if(ret != 1)
                 {
                     fprintf(stderr, "%s: load camera user config failed\n",__func__);
@@ -2097,9 +2074,10 @@ void *thread_cssc132(void *arg)
                 if(ret == 0)
                 {
                     pthread_cond_signal(&condImageHeap);
-
+/*
                     fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
                             __func__,imageHeap.heap[imageHeap.put_ptr]->image->counter,imageHeap.put_ptr);
+*/
                 }
             break;
 
@@ -2115,7 +2093,7 @@ void *thread_cssc132(void *arg)
         }
 
         ret = recvResetMsg();
-        if(ret == 0)
+        if(ret != -1)
         {
             camera_state = DISCONNECT_CAMERA;
         }

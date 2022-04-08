@@ -203,7 +203,6 @@ struct Cssc132Config
     double trigger_frame_rate;                                                      //外部触发帧率
     struct FrameBuffer *frame_buf;                                                  //帧缓冲区
     unsigned short capture_timeout;                                                 //获取图像超时ms
-    struct ImageBuffer image_buf;                                                   //读取出来的图像，返回给其他应用
 };
 
 

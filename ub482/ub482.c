@@ -657,7 +657,7 @@ static int recvAndParseUb482GnssData(void)
             else if(strstr(recv_buf, "#TIMEA") != NULL)
             {
                 sendTimeStampMsgToThreadSync();
-
+/*
                 printf("*******************************************\n");
                 printf("* time_stamp: %lf\n",ub482GnssData.time_stamp);
                 printf("* pos_type  : %d\n",(unsigned char)ub482GnssData.pos_type);
@@ -682,6 +682,7 @@ static int recvAndParseUb482GnssData(void)
                 printf("* roll_std  : %f\n",ub482GnssData.roll_std);
                 printf("* yaw_std   : %f\n",ub482GnssData.yaw_std);
                 printf("*******************************************\n");
+*/
             }
             else
             {

@@ -12,6 +12,7 @@
 #include "mpu9250.h"
 
 
+#define MAX_QUEUE_MSG_NUM				100
 
 #define KEY_UB482_GPGGA_MSG         	1000
 #define KEY_NTRIP_RTCM_MSG              1001
@@ -227,10 +228,11 @@ void StrToHex(unsigned char *pbDest, char *pbSrc, unsigned short len);
 int xQueueSend(key_t queue_key,void *msg_to_queue);
 int xQueueReceive(key_t queue_key,void **msg_from_queue,unsigned char block);
 void freeImageHeap(unsigned short depth);
-int allocateImageHeap(unsigned short depth,unsigned short image_size);
+int allocateImageHeap(unsigned short depth,unsigned int image_size);
 void freeImuAdis16505Heap(unsigned short depth);
 int allocateImuAdis16505Heap(unsigned short depth);
 void freeImuMpu9250Heap(unsigned short depth);
 int allocateImuMpu9250Heap(unsigned short depth);
+void clearSystemQueueMsg(void);
 
 #endif

@@ -20,6 +20,8 @@
 #define UI3240_MIN_USER_CONFIG_FILE_LEN            24
 #define UI3240_MAX_USER_CONFIG_FILE_LEN            1024
 
+#define UI3240_MAX_CAPTURE_FAILED_CNT              5
+
 
 struct Ui3240Config
 {
@@ -29,7 +31,6 @@ struct Ui3240Config
     unsigned char stereo;                   //双镜头
     unsigned char capture_mode;             //获取图像模式，0：队列模式；1：事件等待模式
     unsigned short capture_timeout;         //获取图像超时ms
-    struct ImageBuffer image_buf;           //读取出来的图像，返回给其他应用
     SENSORINFO camera_sensor_info;          //相机传感器信息
     int image_width;                        //图像宽
     int image_height;                       //图像高
