@@ -231,7 +231,6 @@ static void syncRecvAndParseMessage(void)
     static unsigned short recv_pos = 0;
     static unsigned char frame_head[2] = {0xEB,0x90};
     static unsigned char recv_buf[MAX_SYNC_BUF_LEN] = {0};
-    static unsigned int sync_cnt = 0;
 
     recv_len = SerialRead(&serialSync, (char *)&recv_buf[recv_pos], MAX_SYNC_BUF_LEN - recv_pos);
     if(recv_len > 0)
@@ -297,13 +296,6 @@ static void syncRecvAndParseMessage(void)
                                 if(ret == -1)
                                 {
                                     fprintf(stderr, "%s: send sync camera time stamp queue msg failed\n",__func__);
-                                }
-
-                                sync_cnt ++;
-
-                                if(sync_cnt >= 60)
-                                {
-                                    sync_cnt = 0;
                                 }
                             }
                         }
