@@ -15,6 +15,7 @@
 #include <linux/videodev2.h>
 #include "common.h"
 #include "cmd_parse.h"
+#include <jpeglib.h>
 
 #define CSSC132_MAX_SUPPORT_FORMAT_NUM              10
 #define CSSC132_MIN_USER_CONFIG_FILE_LEN            24
@@ -103,7 +104,7 @@
 /****************************************** structs ******************************************/
 struct Cssc132Format
 {
-	unsigned short widht;
+	unsigned short width;
     unsigned short height;
     unsigned short frame_rate;
 };

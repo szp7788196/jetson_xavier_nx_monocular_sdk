@@ -415,7 +415,7 @@ static int recvUb482TimeStampAndSendToSyncModule(void)
     return ret;
 }
 
-void *thread_sync(void *arg)
+void *thread_sync_module(void *arg)
 {
     int ret = 0;
     struct CmdArgs *args = (struct CmdArgs *)arg;

@@ -25,6 +25,7 @@ CFLAGS += -I $(shell pwd)/ui3240
 CFLAGS += -I $(shell pwd)/cssc132
 CFLAGS += -I $(shell pwd)/sync_module
 CFLAGS += -I $(shell pwd)/led
+CFLAGS += -I $(shell pwd)/sync
 
 #LDFLAGS := -lm -lfreetype
 
@@ -46,10 +47,11 @@ obj-y += ui3240/
 obj-y += cssc132/
 obj-y += sync_module/
 obj-y += led/
+obj-y += sync/
 
 all : 
 	make -C ./ -f $(TOPDIR)/Makefile.build
-	$(CC) $(LDFLAGS) -o $(TARGET) built-in.o -lpthread -lm -lueye_api
+	$(CC) $(LDFLAGS) -o $(TARGET) built-in.o -lpthread -lm -lueye_api -ljpeg
 
 clean:
 	rm -f $(shell find -name "*.o")

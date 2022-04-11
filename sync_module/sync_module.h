@@ -55,6 +55,6 @@ struct SyncCamTimeStamp
 };
 
 
-void *thread_sync(void *arg);
+void *thread_sync_module(void *arg);
 
 #endif
