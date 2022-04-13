@@ -2,7 +2,7 @@
 #define __SYNC_H
 
 #include <stdio.h>
-#include "common.h"
+#include "monocular.h"
 #include "cmd_parse.h"
 
 

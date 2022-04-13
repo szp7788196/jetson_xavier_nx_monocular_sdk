@@ -3,7 +3,7 @@
 struct CmdArgs cmdArgs;
 
 #define LONG_OPT(a) a
-#define ARGOPT "ha:b:c:d:e:f:g:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:J:K:L:M:N:O:P:"
+#define ARGOPT "ha:b:c:d:e:f:g:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:J:K:L:M:N:O:P:Q:"
 
 static struct option opts[] = 
 {
@@ -49,6 +49,7 @@ static struct option opts[] =
     { "imu_heap_depth",     required_argument, 0, 'N'},
     { "sync_heap_depth",    required_argument, 0, 'O'},
     { "image_heap_depth",   required_argument, 0, 'P'},
+    { "gnss_heap_depth",    required_argument, 0, 'Q'},
     { 0,                    0,                 0,  0 }
 };
 
@@ -87,8 +88,8 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
     args->frame_num                 = 3;
     args->gyro_range                = 3;
     args->accel_range               = 0;
-    args->sample_rate               = 125;
-    args->read_mode                 = 0;
+    args->sample_rate               = 200;
+    args->read_mode                 = 1;
     args->camera1                   = "/dev/video0";
     args->camera2                   = "/dev/video1";
     args->camera1_ctrl              = "/dev/cssc132_ctrl_0";
@@ -96,10 +97,11 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
     args->usb_cam_def_conf_file     = "./config/ids_default_config.ini";
     args->usb_cam_user_conf_file    = "./config/ids_user_config.ini";
     args->mipi_cam_user_conf_file   = "./config/cssc132_user_config.ini";
-    args->camera_module             = 1;
+    args->camera_module             = 0;
     args->imu_heap_depth            = 8;
     args->sync_heap_depth           = 8;
     args->image_heap_depth          = 8;
+    args->gnss_heap_depth           = 8;
 
     help = 0;
 
@@ -610,7 +612,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
             case 'D':
                 i = 0;
                 i = strtol(optarg, 0, 10);
-                if(i < 4 || i < 1000)
+                if(i < 4 || i > 1000)
                 {
                     res = 0;
                 }
@@ -677,7 +679,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
             case 'N':
                 i = 0;
                 i = strtol(optarg, 0, 10);
-                if(i > 256)
+                if(i < 0 || i > 256)
                 {
                     res = 0;
                 }
@@ -690,7 +692,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
             case 'O':
                 i = 0;
                 i = strtol(optarg, 0, 10);
-                if(i > 256)
+                if(i < 0 || i > 256)
                 {
                     res = 0;
                 }
@@ -703,13 +705,26 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
             case 'P':
                 i = 0;
                 i = strtol(optarg, 0, 10);
-                if(i > 256)
+                if(i < 0 || i > 256)
                 {
                     res = 0;
                 }
                 else
                 {
                     args->image_heap_depth = i;
+                }
+            break;
+
+            case 'Q':
+                i = 0;
+                i = strtol(optarg, 0, 10);
+                if(i < 0 || i > 256)
+                {
+                    res = 0;
+                }
+                else
+                {
+                    args->gnss_heap_depth = i;
                 }
             break;
 
@@ -771,9 +786,9 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
         "| -K " LONG_OPT("--usb_cam_user     ") "usb  camera user    config file name;                               |\n"
         "| -L " LONG_OPT("--mipi_cam_user    ") "mipi camera default config file name;                               |\n"
         "| -M " LONG_OPT("--camera_module    ") "0:usb camera UI3420; 1:csi mipi camera CSSC132;                     |\n"
-        "| -N " LONG_OPT("--imu_heap_depth   ") "imu mpu9250 data heap depth;                                        |\n"
-        "| -O " LONG_OPT("--sync_heap_depth  ") "imu adis16505 data heap depth;                                      |\n"
-        "| -P " LONG_OPT("--image_heap_depth ") "image data heap depth;                                              |\n"
+        "| -N " LONG_OPT("--imu_heap_depth   ") "imu mpu9250 data heap depth,should be less than 256;                |\n"
+        "| -O " LONG_OPT("--sync_heap_depth  ") "imu adis16505 data heap depth,should be less than 256;              |\n"
+        "| -P " LONG_OPT("--image_heap_depth ") "image data heap depth,should be less than 256;                      |\n"
         "|===========================================================================================|\n"
         );
 

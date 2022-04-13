@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <sys/time.h>
-#include "common.h"
+#include "monocular.h"
 #include "serial.h"
 #include "cmd_parse.h"
 

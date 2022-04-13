@@ -1,7 +1,7 @@
 #include "cssc132.h"
 
-struct Cssc132Config cssc132Config;
-struct Cssc132Config usercssc132config;
+static struct Cssc132Config cssc132Config;
+static struct Cssc132Config usercssc132config;
 
 
 static void initCssc132Config(struct Cssc132Config *config,struct CmdArgs *args)
@@ -1839,7 +1839,7 @@ static int reallocateCameraBuffer(struct Cssc132Config *config)
 		}
     }
 
-    freeImageHeap(config->image_heap_depth);
+    freeImageHeap();
 
     ret = allocateImageHeap(config->image_heap_depth,fmt.fmt.pix.sizeimage);
     if(ret != 0)
@@ -1979,161 +1979,9 @@ static int recvResetMsg(void)
     return ret;
 }
 
-/*
-* YUV422打包数据,UYVY,转换为RGB565,
-* inBuf -- YUV data
-* outBuf -- RGB565 data
-* imgWidth,imgHeight -- image width and height
-*/
-static int convert_UYVY_To_RGB(unsigned char *in_buf, unsigned char *out_buf, int image_width, int image_height)
-{
-    int rows ,cols;	                        /* 行列标志 */
-	int y, u, v, r, g, b;	                /* yuv rgb 相关分量 */
-	unsigned char *yuv_data, *rgb_data;	    /* YUV和RGB数据指针 */
-	int y_pos, u_pos, v_pos;	            /* Y U V在数据缓存中的偏移 */
-	unsigned int i = 0;
-
-	yuv_data = in_buf;
-	rgb_data = out_buf;
-
-#if 0
-	/*  YUYV */
-	y_pos = 0;
-	u_pos = y_pos + 1;
-	v_pos = u_pos + 2;
-
-	/* YVYU */
-	y_pos = 0;
-	v_pos = y_pos + 1;
-	u_pos = v_pos + 2;
-#endif
-
-#if 1   /* UYVY */
-	y_pos = 1;
-	u_pos = y_pos - 1;
-	v_pos = y_pos + 1;
-#endif
-
-	/* 每个像素两个字节 */
-	for(rows = 0; rows < image_height; rows ++)
-	{
-		for(cols = 0; cols < image_width; cols ++)
-		{
-			/* 矩阵推到，百度 */
-			y = yuv_data[y_pos];
-			u = yuv_data[u_pos] - 128;
-			v = yuv_data[v_pos] - 128;
-
-			r = y + v + ((v * 103) >> 8);
-			g = y - ((u * 88) >> 8) - ((v * 183) >> 8);
-			b = y + u + ((u * 198) >> 8);
-
-			r = r > 255?255:(r < 0?0:r);
-			g = g > 255?255:(g < 0?0:g);
-			b = b > 255?255:(b < 0?0:b);
-
-			/* 从低到高r g b */
-//			*(rgb_data ++) = (((g & 0x1c) << 3) | (b >> 3));	/* g低5位，b高5位 */
-//			*(rgb_data ++) = ((r & 0xf8) | (g >> 5));	/* r高5位，g高3位 */
-
-            *(rgb_data ++) = r;
-            *(rgb_data ++) = g;
-            *(rgb_data ++) = b;
-
-			/* 两个字节数据中包含一个Y */
-			y_pos += 2;
-			//y_pos++;
-			i ++;
-			/* 每两个Y更新一次UV */
-			if(!(i & 0x01))	
-			{
-				u_pos = y_pos - 1;
-				v_pos = y_pos + 1;
-			}
-		}
-	}
-
-	return 0;
-}
-
-static int imageBufCompressToJpeg(char * file_name,
-                                  int quality,
-                                  unsigned char *image_buffer,
-                                  unsigned int image_width,
-                                  unsigned int image_height)
-{
-    int ret = 0;
-    struct jpeg_compress_struct com_cinfo;
-    struct jpeg_error_mgr com_jerr;
-    FILE * outfile;      /* target file */
-    JSAMPROW row_pointer[1];  /* pointer to JSAMPLE row[s] 一行位图 */
-    int row_stride;      /* physical row width in image buffer */
-    unsigned char *rgb_buf = NULL;
-
-    rgb_buf = (unsigned char *)malloc(image_width * image_height * 3);
-    if(rgb_buf == NULL)
-    {
-        fprintf(stderr, "%s: malloc rgb_buf failed\n",__func__);
-        return -1;
-    }
-
-    convert_UYVY_To_RGB(image_buffer,rgb_buf,image_width,image_height);
-
-    free(rgb_buf);
-    rgb_buf = NULL;
-
-    //Step 1: 申请并初始化jpeg压缩对象，同时要指定错误处理器
-    com_cinfo.err = jpeg_std_error(&com_jerr);
-
-    //Now we can initialize the JPEG compression object.
-    jpeg_create_compress(&com_cinfo);
-
-    outfile = fopen(file_name, "wb");
-
-    if(outfile == NULL) 
-    {
-        fprintf(stderr, "%s: can't open %s\n",__func__,file_name);
-        return -1;
-    }
-
-    jpeg_stdio_dest(&com_cinfo, outfile);
-
-    //Step 3: 设置压缩参数
-    com_cinfo.image_width = image_width;
-    com_cinfo.image_height = image_height;
-    com_cinfo.input_components = 3;             //3表示彩色位图，如果是灰度图则为1
-    com_cinfo.in_color_space = JCS_RGB;         //JCS_RGB表示彩色图像,JCS_GRAYSCALE为灰度图
-
-    jpeg_set_defaults(&com_cinfo);
-    jpeg_set_quality(&com_cinfo, quality, TRUE);
-
-    //Step 4: Start compressor
-    jpeg_start_compress(&com_cinfo, TRUE);
-
-    //Step 5: while (scan lines remain to be written)
-    row_stride = image_width * 3;                 //每一行的字节数,如果不是索引图,此处需要乘以3
-
-    while(com_cinfo.next_scanline < com_cinfo.image_height)
-    {
-        row_pointer[0] = &rgb_buf[com_cinfo.next_scanline * row_stride];  // image_buffer指向要压缩的数据  
-        jpeg_write_scanlines(&com_cinfo, row_pointer, 1);
-    }
-
-    //Step 6: Finish compression
-    jpeg_finish_compress(&com_cinfo);
-    fclose(outfile);
-
-    //Step 7: release JPEG compression object
-    jpeg_destroy_compress(&com_cinfo);
-
-    return ret;
-}
-
 void *thread_cssc132(void *arg)
 {
     int ret = 0;
-//    int cnt = 0;
-//    char file_name[32] = {0};
     struct CmdArgs *args = (struct CmdArgs *)arg;
     enum CameraState camera_state = INIT_CONFIG;
 
@@ -2181,7 +2029,7 @@ void *thread_cssc132(void *arg)
             case (unsigned char)SET_USER_CONFIG:        //设置用户配置
                 setCssc132UserConfig(cssc132Config,usercssc132config);
 
-                sleep(3);
+                sleep(1);
 
                 ret = v4l2QueryCameraInfo(cssc132Config);
                 if(ret != 0)
@@ -2229,23 +2077,6 @@ void *thread_cssc132(void *arg)
                 ret = captureImage(cssc132Config,imageHeap.heap[imageHeap.put_ptr]->image);
                 if(ret == 0)
                 {
-/*
-                    if(cnt < 10)
-                    {
-                        memset(file_name,0,32);
-                        snprintf(file_name, 32, "/home/szp/image_%d.jpg",cnt ++);
-                        
-                        ret = imageBufCompressToJpeg(file_name,
-                                                     80,
-                                                     (unsigned char *)imageHeap.heap[imageHeap.put_ptr]->image->image,
-                                                     cssc132Config.current_format.width,
-                                                     cssc132Config.current_format.height);
-                        if(ret != 0)
-                        {
-                            fprintf(stderr, "%s: compress image buf to jpeg picture failed\n",__func__);
-                        }
-                    }
-*/
                     pthread_cond_signal(&condImageHeap);
 /*
                     fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",

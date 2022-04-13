@@ -10,7 +10,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <ueye.h>
-#include "common.h"
+#include "monocular.h"
 #include "cmd_parse.h"
 
 

@@ -6,6 +6,7 @@ static struct Serial serialGet;
 
 
 struct Ub482GnssData ub482GnssData;
+struct Ub482GnssData ub482GnssData1;
 
 static int ub482_send_config_cmd(struct Serial *sn,
                                  char* cmd,
@@ -364,7 +365,7 @@ static void getBestPositionData(char *msg, int msg_len)
     
     msg += (pos + 1);
 
-    fprintf(stdout,"%s: msg:%s",__func__,msg);
+//    fprintf(stdout,"%s: msg:%s",__func__,msg);
 
     memset(buf,0,32);
     get_str1((unsigned char *)msg, (unsigned char *)",", 1, (unsigned char *)",", 2, (unsigned char *)buf);
@@ -436,7 +437,7 @@ static void getBestVelocityData(char *msg, int msg_len)
     
     msg += (pos + 1);
 
-    fprintf(stdout,"%s: msg:%s",__func__,msg);
+//    fprintf(stdout,"%s: msg:%s",__func__,msg);
 
     get_str1((unsigned char *)msg, (unsigned char *)",", 1, (unsigned char *)",", 2, (unsigned char *)buf);
     if(strlen(buf) == 0)
@@ -488,7 +489,7 @@ static void getBestAttitudeData(char *msg, int msg_len)
     
     msg += (pos + 1);
 
-    fprintf(stdout,"%s: msg:%s",__func__,msg);
+//    fprintf(stdout,"%s: msg:%s",__func__,msg);
 
     get_str1((unsigned char *)msg, (unsigned char *)",", 1, (unsigned char *)",", 2, (unsigned char *)buf);
     if(strlen(buf) == 0)
@@ -656,6 +657,8 @@ static int recvAndParseUb482GnssData(void)
             }
             else if(strstr(recv_buf, "#TIMEA") != NULL)
             {
+                gnssUb482HeapPut(&ub482GnssData);
+
                 sendTimeStampMsgToThreadSync();
 /*
                 printf("*******************************************\n");
@@ -716,12 +719,14 @@ void *thread_ub482(void *arg)
         fprintf(stderr, "%s: ub482 config init failed\n",__func__);
     }
 
+    allocateGnssUb482Heap(args->gnss_heap_depth);
+
     while(1)
     {
         recvAndParseUb482GnssData();                        //接收并解析ub482数据
         recvNtripDataMsgAndWriteToUb482();                  //接收ntrip服务器的矫正数据，并发送给UB482
         
-        usleep(1000 * 10);
+        usleep(1000 * 100);
     }
 
 THREAD_EXIT:

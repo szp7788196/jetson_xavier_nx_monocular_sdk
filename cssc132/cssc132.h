@@ -13,9 +13,9 @@
 #include <sys/select.h>
 #include <sys/mman.h>
 #include <linux/videodev2.h>
-#include "common.h"
+#include "monocular.h"
 #include "cmd_parse.h"
-#include <jpeglib.h>
+
 
 #define CSSC132_MAX_SUPPORT_FORMAT_NUM              10
 #define CSSC132_MIN_USER_CONFIG_FILE_LEN            24

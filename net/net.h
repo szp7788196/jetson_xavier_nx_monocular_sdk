@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include "common.h"
+#include "monocular.h"
 #include "serial.h"
 #include "cmd_parse.h"
 

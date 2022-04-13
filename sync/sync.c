@@ -1,6 +1,6 @@
 #include "sync.h"
 
-static int syncImageAndCameraTimeStamp(unsigned short depth)
+static int syncImageAndCameraTimeStamp(void)
 {
     int ret = 0;
     struct SyncCamTimeStamp *cam_time_stamp = NULL;
@@ -23,8 +23,6 @@ static int syncImageAndCameraTimeStamp(unsigned short depth)
     pthread_cond_wait(&condImageHeap, &mutexImageHeap);
 
     memcpy(imageHeap.heap[imageHeap.put_ptr]->time_stamp,&time_stamp,sizeof(struct SyncCamTimeStamp));
-
-    pthread_mutex_unlock(&mutexImageHeap);
 
     if(first_sync == 1)
     {
@@ -71,15 +69,17 @@ static int syncImageAndCameraTimeStamp(unsigned short depth)
         }
     }
 
-    if(imageHeap.put_ptr < depth)
-    {
-        imageHeap.put_ptr ++;
+    imageHeap.put_ptr = (imageHeap.put_ptr + 1) % imageHeap.depth;
 
-        if(imageHeap.put_ptr >= depth)
-        {
-            imageHeap.put_ptr = 0;
-        }
-    }
+	imageHeap.cnt += 1;
+	if(imageHeap.cnt >= imageHeap.depth)
+	{
+		imageHeap.cnt = imageHeap.depth;
+
+		imageHeap.get_ptr = imageHeap.put_ptr;
+	}
+
+    pthread_mutex_unlock(&mutexImageHeap);
 
     return ret;
 }
@@ -123,7 +123,7 @@ void *thread_sync(void *arg)
 
     while(1)
     {
-        ret = syncImageAndCameraTimeStamp(cmdArgs.image_heap_depth);
+        ret = syncImageAndCameraTimeStamp();
         if(ret == -1)
         {
             sendQueueMsgToResetCameraAndSyncModule();

@@ -9,7 +9,7 @@
 #include <pthread.h>
 #include <sys/ioctl.h>
 #include "cmd_parse.h"
-#include "common.h"
+#include "monocular.h"
 
 
 /* 定义设备类型 */

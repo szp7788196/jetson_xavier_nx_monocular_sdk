@@ -1233,7 +1233,7 @@ static int reallocateCameraBuffer(void)
 
     cameraConfig.frame_buf_size = cam_buffer_pitch * frame_height;
 
-    freeImageHeap(cameraConfig.image_heap_depth);
+    freeImageHeap();
 
     is_err = allocateImageHeap(cameraConfig.image_heap_depth,cameraConfig.frame_buf_size);
     if(is_err != IS_SUCCESS)
@@ -3107,10 +3107,9 @@ void *thread_ui3240(void *arg)
                     capture_failed_cnt= 0;
                     pthread_cond_signal(&condImageHeap);
 
-                    fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
+/*                     fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
                             __func__,imageHeap.heap[imageHeap.put_ptr]->image->counter,imageHeap.put_ptr);
-
-
+ */
                 }
                 else
                 {

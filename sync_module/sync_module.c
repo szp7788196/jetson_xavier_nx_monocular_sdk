@@ -6,8 +6,8 @@
 // len = 3 + 8 + 8 + 4 = 23
 static enum SyncState syncState = SET_STOP;
 static struct Serial serialSync;
+static struct SyncImuData syncImuData;
 static double frameRate = 30.0f;
-static unsigned short syncHeapDepth = 0;
 
 
 static int sync_serial_init(struct CmdArgs *args)
@@ -197,7 +197,7 @@ static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *c
     {
         if(cam_time_stamp->counter - last_counter != 1)
         {
-            fprintf(stderr, "%s: camare time stamp counter err,is not continous\n",__func__);
+            fprintf(stderr, "%s: camera time stamp counter err,is not continous\n",__func__);
         }
     }
 
@@ -216,6 +216,8 @@ static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *c
                  ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) <<  0) & 0x000000FF);
 
     cam_time_stamp->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
+
+    // fprintf(stderr, "%s: camera time stamp counter is %d\n",__func__,cam_time_stamp->counter);
 
     return ret;
 }
@@ -262,21 +264,15 @@ static void syncRecvAndParseMessage(void)
                     // do parse...
                     if(recv_buf[head_pos + 2] == 0x00)
                     {
-                        pthread_mutex_lock(&mutexImuAdis16505Heap); 
-                        ret = syncParseImuData(&recv_buf[head_pos],imuAdis16505Heap.heap[imuAdis16505Heap.put_ptr]);
+                        ret = syncParseImuData(&recv_buf[head_pos],&syncImuData);
                         if(ret != 0)
                         {
                             fprintf(stderr, "%s: parse imu data failed\n",__func__);
                         }
                         else
                         {
-                            imuAdis16505Heap.put_ptr ++;
-                            if(imuAdis16505Heap.put_ptr >= syncHeapDepth)
-                            {
-                                imuAdis16505Heap.put_ptr = 0;
-                            }
+                            imuAdis16505HeapPut(&syncImuData);
                         }
-                        pthread_mutex_unlock(&mutexImuAdis16505Heap);
                     }
                     else if(recv_buf[head_pos + 2] == 0x01)
                     {
@@ -420,15 +416,13 @@ void *thread_sync_module(void *arg)
     int ret = 0;
     struct CmdArgs *args = (struct CmdArgs *)arg;
 
-    syncHeapDepth = args->sync_heap_depth;
-
-    allocateImuAdis16505Heap(syncHeapDepth);
-
     ret = sync_serial_init(args);
     if(ret != 0)
     {
         goto THREAD_EXIT;
     }
+
+    allocateImuAdis16505Heap(args->sync_heap_depth);
 
     while(1)
     {
@@ -483,27 +477,3 @@ void *thread_sync_module(void *arg)
 THREAD_EXIT:
     pthread_exit("thread_sync: open serial port failed\n");
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

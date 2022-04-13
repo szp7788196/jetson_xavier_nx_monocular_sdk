@@ -57,6 +57,7 @@ struct CmdArgs
   unsigned short imu_heap_depth;       //imu堆深度
   unsigned short sync_heap_depth;      //同步模块imu堆深度
   unsigned short image_heap_depth;     //图像堆深度
+  unsigned short gnss_heap_depth;      //gnss数据堆深度
 };
 
 
