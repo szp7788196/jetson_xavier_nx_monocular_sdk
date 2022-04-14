@@ -2,9 +2,6 @@
 #define __CMD_PARSE_H
 
 #include "serial.h"
-#include <getopt.h>
-#include <stdlib.h>
-#include <wchar.h>
 
 struct CmdArgs
 {

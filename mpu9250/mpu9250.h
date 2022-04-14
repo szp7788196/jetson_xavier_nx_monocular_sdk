@@ -1,15 +1,7 @@
 #ifndef __MPU9250_H
 #define __MPU9250_H
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <pthread.h>
 #include <sys/ioctl.h>
-#include "cmd_parse.h"
-#include "monocular.h"
 
 
 /* 定义设备类型 */

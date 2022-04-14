@@ -1,18 +1,8 @@
 #ifndef __VIDEO_H
 #define __VIDEO_H
 
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h> 
-#include <stdbool.h>
-#include <unistd.h>
-#include <sys/types.h>    
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <ueye.h>
-#include "monocular.h"
-#include "cmd_parse.h"
-
+#include <stdbool.h>
 
 #define UI3240_DEFAULT_CLOLOR_MODE_STRING          "mono8\0"
 #define UI3240_MIN_IMAGE_WIDTH                     8

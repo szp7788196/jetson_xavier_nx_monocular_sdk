@@ -1,12 +1,6 @@
 #ifndef __SYNC_MODULE_H
 #define __SYNC_MODULE_H
 
-#include <stdbool.h>
-#include <sys/time.h>
-#include "monocular.h"
-#include "serial.h"
-#include "cmd_parse.h"
-
 
 #define FPGA_CLOCK_HZ       20000000
 #define MAX_SYNC_BUF_LEN    1024

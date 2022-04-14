@@ -1,4 +1,16 @@
 #include "monocular.h"
+#include <pthread.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <jpeglib.h>
+#include "cmd_parse.h"
+#include "cssc132.h"
+#include "led.h"
+#include "ui3240.h"
+#include "net.h"
+#include "sync.h"
+#include "handler.h"
 
 struct ImageHeap imageHeap = {NULL,0,0,0};
 struct ImuAdis16505Heap imuAdis16505Heap = {NULL,0,0,0};
@@ -10,6 +22,8 @@ pthread_mutex_t mutexImuAdis16505Heap;
 pthread_mutex_t mutexImuMpu9250Heap;
 pthread_mutex_t mutexGnssUb482Heap;
 pthread_cond_t condImageHeap;
+
+struct DataHandler dataHandler = {NULL,NULL,NULL,NULL};
 
 unsigned int CRC32(unsigned char *buf, unsigned int size)
 {
@@ -337,7 +351,7 @@ void StrToHex(unsigned char *pbDest, char *pbSrc, unsigned short len)
 	}
 }
 
-int xQueueSend(key_t queue_key,void *msg_to_queue)
+int xQueueSend(key_t queue_key,void *msg_to_queue,unsigned short queue_depth)
 {
 	int ret = 0;
 	unsigned char i = 0;
@@ -361,7 +375,7 @@ int xQueueSend(key_t queue_key,void *msg_to_queue)
 		return -1;
 	}
 
-	if(queue_info.msg_qnum >= MAX_QUEUE_MSG_NUM)
+	if(queue_info.msg_qnum >= queue_depth)
 	{
 		ret = xQueueReceive(queue_key,(void **)&pointer,0);
 		if(ret == -1)
@@ -482,6 +496,30 @@ void clearSystemQueueMsg(void)
 	do
 	{
 		ret = xQueueReceive((key_t)KEY_SYNC_MODULE_RESET_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_IMAGE_HANDLER_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_IMU_ADS16505_HANDLER_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_IMU_MPU9250_HANDLER_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_GNSS_UB482_HANDLER_MSG,(void **)&pointer,0);
 	}
 	while(ret != -1);
 }
@@ -825,6 +863,8 @@ int imageHeapGet(struct ImageHeapUnit *data)
 
 int imuAdis16505HeapPut(struct SyncImuData *data)
 {
+	int ret = 0;
+
 	if(data == NULL)
 	{
 		fprintf(stderr, "%s: data is null\n",__func__);
@@ -835,6 +875,14 @@ int imuAdis16505HeapPut(struct SyncImuData *data)
 
 	memcpy(imuAdis16505Heap.heap[imuAdis16505Heap.put_ptr],data,sizeof(struct SyncImuData));
 
+	ret = xQueueSend((key_t)KEY_IMU_ADS16505_HANDLER_MSG,
+	                 imuAdis16505Heap.heap[imuAdis16505Heap.put_ptr],
+					 imuAdis16505Heap.depth);
+	if(ret == -1)
+	{
+		fprintf(stderr, "%s: send imuAdis16505Heap.heap[imuAdis16505Heap.put_ptr] queue msg failed\n",__func__);
+	}
+
 	imuAdis16505Heap.put_ptr = (imuAdis16505Heap.put_ptr + 1) % imuAdis16505Heap.depth;
 
 	imuAdis16505Heap.cnt += 1;
@@ -844,6 +892,7 @@ int imuAdis16505HeapPut(struct SyncImuData *data)
 
 		imuAdis16505Heap.get_ptr = imuAdis16505Heap.put_ptr;
 	}
+
 	pthread_mutex_unlock(&mutexImuAdis16505Heap);
 
 	return 0;
@@ -880,6 +929,8 @@ int imuAdis16505HeapGet(struct SyncImuData *data)
 
 int imuMpu9250HeapPut(struct Mpu9250SampleData *data)
 {
+	int ret = 0;
+
 	if(data == NULL)
 	{
 		fprintf(stderr, "%s: data is null\n",__func__);
@@ -889,6 +940,14 @@ int imuMpu9250HeapPut(struct Mpu9250SampleData *data)
 	pthread_mutex_lock(&mutexImuMpu9250Heap); 
 
 	memcpy(imuMpu9250Heap.heap[imuMpu9250Heap.put_ptr],data,sizeof(struct Mpu9250SampleData));
+
+	ret = xQueueSend((key_t)KEY_IMU_MPU9250_HANDLER_MSG,
+	                 imuMpu9250Heap.heap[imuMpu9250Heap.put_ptr],
+					 imuMpu9250Heap.depth);
+	if(ret == -1)
+	{
+		fprintf(stderr, "%s: send imuMpu9250Heap.heap[imuMpu9250Heap.put_ptr] queue msg failed\n",__func__);
+	}
 
 	imuMpu9250Heap.put_ptr = (imuMpu9250Heap.put_ptr + 1) % imuMpu9250Heap.depth;
 
@@ -935,6 +994,8 @@ int imuMpu9250HeapGet(struct Mpu9250SampleData *data)
 
 int gnssUb482HeapPut(struct Ub482GnssData *data)
 {
+	int ret = 0;
+
 	if(data == NULL)
 	{
 		fprintf(stderr, "%s: data is null\n",__func__);
@@ -944,6 +1005,14 @@ int gnssUb482HeapPut(struct Ub482GnssData *data)
 	pthread_mutex_lock(&mutexGnssUb482Heap); 
 
 	memcpy(gnssUb482Heap.heap[gnssUb482Heap.put_ptr],data,sizeof(struct Ub482GnssData));
+
+	ret = xQueueSend((key_t)KEY_GNSS_UB482_HANDLER_MSG,
+	                 gnssUb482Heap.heap[gnssUb482Heap.put_ptr],
+					 gnssUb482Heap.depth);
+	if(ret == -1)
+	{
+		fprintf(stderr, "%s: send gnssUb482Heap.heap[gnssUb482Heap.put_ptr] queue msg failed\n",__func__);
+	}
 
 	gnssUb482Heap.put_ptr = (gnssUb482Heap.put_ptr + 1) % gnssUb482Heap.depth;
 
@@ -1196,6 +1265,11 @@ static int pthreadCreate(void *args)
     static pthread_t tid_sync = 0;
     static pthread_t tid_led = 0;
 
+	static pthread_t tid_image_handler = 0;
+	static pthread_t tid_imu_ads16505_handler = 0;
+	static pthread_t tid_imu_mpu9250_handler = 0;
+	static pthread_t tid_gnss_ub482_handler = 0;
+
     ret = pthread_create(&tid_ub482,NULL,thread_ub482,&cmdArgs);
     if(0 != ret)
     {
@@ -1249,6 +1323,30 @@ static int pthreadCreate(void *args)
         fprintf(stderr, "%s: create thread_led failed\n",__func__);
     }
 
+	ret = pthread_create(&tid_image_handler,NULL,thread_image_handler,NULL);
+    if(0 != ret)
+    {
+        fprintf(stderr, "%s: create thread_image_handler failed\n",__func__);
+    }
+
+	ret = pthread_create(&tid_imu_ads16505_handler,NULL,thread_imu_ads16505_handler,NULL);
+    if(0 != ret)
+    {
+        fprintf(stderr, "%s: create thread_imu_ads16505_handler failed\n",__func__);
+    }
+
+	ret = pthread_create(&tid_imu_mpu9250_handler,NULL,thread_imu_mpu9250_handler,NULL);
+    if(0 != ret)
+    {
+        fprintf(stderr, "%s: create thread_imu_mpu9250_handler failed\n",__func__);
+    }
+
+	ret = pthread_create(&tid_gnss_ub482_handler,NULL,thread_gnss_ub482_handler,NULL);
+    if(0 != ret)
+    {
+        fprintf(stderr, "%s: create thread_gnss_ub482_handler failed\n",__func__);
+    }
+
     return ret;
 }
 
@@ -1268,4 +1366,15 @@ int monocular_sdk_init(int argc, char **argv)
     pthreadCreate(&cmdArgs);
 
     return ret;
+}
+
+void monocular_sdk_register_handler(ImageHandler image_handler,
+                                    ImuAds16505Handler imu_ads16505_handler,
+									ImuMpu9250Handler imu_mpu9250_handler,
+									GnssUb482Handler gnss_ub482_handler)
+{
+	dataHandler.image_handler        = image_handler;
+	dataHandler.imu_ads16505_handler = imu_ads16505_handler;
+	dataHandler.imu_mpu9250_handler  = imu_mpu9250_handler;
+	dataHandler.gnss_ub482_handler   = gnss_ub482_handler;
 }

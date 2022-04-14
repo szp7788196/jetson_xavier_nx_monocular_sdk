@@ -1,4 +1,10 @@
 #include "led.h"
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <pthread.h>
 #include "net.h"
 #include "ub482.h"
 

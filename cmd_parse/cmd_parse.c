@@ -1,3 +1,7 @@
+#include <getopt.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include "cmd_parse.h"
 
 struct CmdArgs cmdArgs;

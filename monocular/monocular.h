@@ -2,21 +2,12 @@
 #define __MONOCULAR_H
 
 #include <pthread.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
-#include <jpeglib.h>
-#include "cssc132.h"
-#include "led.h"
 #include "mpu9250.h"
-#include "net.h"
-#include "sync.h"
 #include "sync_module.h"
 #include "ub482.h"
-#include "ui3240.h"
 
 
 #define MAX_QUEUE_MSG_NUM				100
@@ -28,6 +19,10 @@
 #define KEY_SYNC_CAM_TIME_STAMP_MSG    	1004
 #define KEY_CAMERA_RESET_MSG			1005
 #define KEY_SYNC_MODULE_RESET_MSG		1006
+#define KEY_IMAGE_HANDLER_MSG			1007
+#define KEY_IMU_ADS16505_HANDLER_MSG	1008
+#define KEY_IMU_MPU9250_HANDLER_MSG		1009
+#define KEY_GNSS_UB482_HANDLER_MSG		1010
 
 #define NTRIP_RTCM_MSG_MAX_LEN          1024
 
@@ -120,6 +115,19 @@ struct GnssUb482Heap
 	unsigned short cnt;
 	unsigned short get_ptr;
 	unsigned short put_ptr;
+};
+
+typedef int (*ImageHandler)(struct ImageHeapUnit *);
+typedef int (*ImuAds16505Handler)(struct SyncImuData *);
+typedef int (*ImuMpu9250Handler)(struct Mpu9250SampleData *);
+typedef int (*GnssUb482Handler)(struct Ub482GnssData *);
+
+struct DataHandler
+{
+	ImageHandler image_handler;
+	ImuAds16505Handler imu_ads16505_handler;
+	ImuMpu9250Handler imu_mpu9250_handler;
+	GnssUb482Handler gnss_ub482_handler;
 };
 
 
@@ -238,6 +246,8 @@ extern pthread_mutex_t mutexImuMpu9250Heap;
 extern pthread_mutex_t mutexGnssUb482Heap;
 extern pthread_cond_t condImageHeap;
 
+extern struct DataHandler dataHandler;
+
 unsigned int CRC32(unsigned char *buf, unsigned int size);
 unsigned short CalCheckSum(unsigned char *buf, unsigned short len);
 unsigned char CalCheckOr(unsigned char *buf, unsigned short len);
@@ -265,7 +275,7 @@ unsigned short get_str2(unsigned char *source,
 int my_toupper(int ch);
 void HexToStr(char *pbDest, unsigned char *pbSrc, unsigned short len);
 void StrToHex(unsigned char *pbDest, char *pbSrc, unsigned short len);
-int xQueueSend(key_t queue_key,void *msg_to_queue);
+int xQueueSend(key_t queue_key,void *msg_to_queue,unsigned short queue_depth);
 int xQueueReceive(key_t queue_key,void **msg_from_queue,unsigned char block);
 void freeImageHeap(void);
 void clearSystemQueueMsg(void);
@@ -291,5 +301,9 @@ int imageBufCompressToJpeg(char * file_name,
                            unsigned int image_height,
 						   unsigned char format);
 int monocular_sdk_init(int argc, char **argv);
+void monocular_sdk_register_handler(ImageHandler image_handler,
+                                    ImuAds16505Handler imu_ads16505_handler,
+									ImuMpu9250Handler imu_mpu9250_handler,
+									GnssUb482Handler gnss_ub482_handler);
 
 #endif

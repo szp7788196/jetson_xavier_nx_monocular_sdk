@@ -1,4 +1,9 @@
 #include "sync.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "monocular.h"
+#include "cmd_parse.h"
 
 static int syncImageAndCameraTimeStamp(void)
 {
@@ -67,6 +72,12 @@ static int syncImageAndCameraTimeStamp(void)
         {
 //            fprintf(stderr, "%s: sync image and camera trigger time stamp success\n",__func__);
         }
+
+        ret = xQueueSend((key_t)KEY_IMAGE_HANDLER_MSG,imageHeap.heap[imageHeap.put_ptr],imageHeap.depth);
+        if(ret == -1)
+        {
+            fprintf(stderr, "%s: send imageHeap.heap[imageHeap.put_ptr] queue msg failed\n",__func__);
+        }
     }
 
     imageHeap.put_ptr = (imageHeap.put_ptr + 1) % imageHeap.depth;
@@ -95,7 +106,7 @@ static int sendQueueMsgToResetCameraAndSyncModule(void)
     {
         *camera_reset = 1;
 
-        ret = xQueueSend((key_t)KEY_CAMERA_RESET_MSG,camera_reset);
+        ret = xQueueSend((key_t)KEY_CAMERA_RESET_MSG,camera_reset,MAX_QUEUE_MSG_NUM);
         if(ret == -1)
         {
             fprintf(stderr, "%s: send camera reset queue msg failed\n",__func__);
@@ -107,7 +118,7 @@ static int sendQueueMsgToResetCameraAndSyncModule(void)
     {
         *sync_module_reset = 1;
 
-        ret = xQueueSend((key_t)KEY_SYNC_MODULE_RESET_MSG,sync_module_reset);
+        ret = xQueueSend((key_t)KEY_SYNC_MODULE_RESET_MSG,sync_module_reset,MAX_QUEUE_MSG_NUM);
         if(ret == -1)
         {
             fprintf(stderr, "%s: send sync module reset queue msg failed\n",__func__);

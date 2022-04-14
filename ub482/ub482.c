@@ -1,4 +1,13 @@
 #include "ub482.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/time.h>
+#include <math.h>
+#include "monocular.h"
+#include "serial.h"
+#include "cmd_parse.h"
 
 enum PositionVelocityType gnssState = TYPE_NONE;
 static struct Serial serialSet;
@@ -546,7 +555,7 @@ void sendTimeStampMsgToThreadSync(void)
         *time_stamp = ub482GnssData.time_stamp;
     }
 
-    ret = xQueueSend((key_t)KEY_UB482_TIME_STAMP_MSG,time_stamp);
+    ret = xQueueSend((key_t)KEY_UB482_TIME_STAMP_MSG,time_stamp,MAX_QUEUE_MSG_NUM);
     if(ret == -1)
     {
         fprintf(stderr, "%s: send ub482 time stamp queue msg failed\n",__func__);
@@ -626,7 +635,7 @@ static int recvAndParseUb482GnssData(void)
                     memset(gpgga_msg,0,recv_len - 2 + 1);
                     memcpy(gpgga_msg,recv_buf,recv_len - 2);
 
-                    ret = xQueueSend((key_t)KEY_UB482_GPGGA_MSG,gpgga_msg);
+                    ret = xQueueSend((key_t)KEY_UB482_GPGGA_MSG,gpgga_msg,MAX_QUEUE_MSG_NUM);
                     if(ret == -1)
                     {
                         fprintf(stderr, "%s: send gpgga queue msg failed\n",__func__);

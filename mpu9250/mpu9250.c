@@ -1,4 +1,12 @@
 #include "mpu9250.h"
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <pthread.h>
+#include "cmd_parse.h"
+#include "monocular.h"
 
 struct Mpu9250SampleData mpu9250SampleData;
 
@@ -32,17 +40,13 @@ void *thread_mpu9250(void *arg)
 
     allocateImuMpu9250Heap(args->imu_heap_depth);
 
-    /* 构造超时时间 */
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 100000; /* 500ms */
-
     while(1)
     {
         FD_ZERO(&readfds);
 		FD_SET(fd, &readfds);
 
         timeout.tv_sec = 0;
-        timeout.tv_usec = 50000; /* 500ms */
+        timeout.tv_usec = 500000; /* 500ms */
 
         ret = select(fd + 1, &readfds, NULL, NULL, &timeout);
         switch(ret)

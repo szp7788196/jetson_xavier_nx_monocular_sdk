@@ -1,13 +1,8 @@
 #ifndef __SERIAL_H
 #define __SERIAL_H
 
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <string.h>
 #include <termios.h>
-#include <unistd.h>
+#include <stdio.h>
 
 enum SerialBaudrate
 {

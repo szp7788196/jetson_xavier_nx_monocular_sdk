@@ -1,12 +1,7 @@
 #ifndef __LED_H
 #define __LED_H
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <pthread.h>
+
 #include <sys/ioctl.h>
 
 

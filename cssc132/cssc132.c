@@ -1,4 +1,18 @@
 #include "cssc132.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include <sys/types.h>    
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/select.h>
+#include <sys/mman.h>
+#include <linux/videodev2.h>
+#include "monocular.h"
+#include "cmd_parse.h"
 
 static struct Cssc132Config cssc132Config;
 static struct Cssc132Config usercssc132config;
@@ -1901,7 +1915,7 @@ static void sendFrameRateMsgToThreadSync(struct Cssc132Config config)
     {
         *frame_rate = config.trigger_frame_rate;
 
-        ret = xQueueSend((key_t)KEY_FRAME_RATE_MSG,frame_rate);
+        ret = xQueueSend((key_t)KEY_FRAME_RATE_MSG,frame_rate,MAX_QUEUE_MSG_NUM);
         if(ret == -1)
         {
             fprintf(stderr, "%s: send cssc132 frame rate queue msg failed\n",__func__);

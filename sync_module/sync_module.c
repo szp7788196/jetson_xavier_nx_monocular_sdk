@@ -1,4 +1,13 @@
 #include "sync_module.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdbool.h>
+#include <sys/time.h>
+#include "monocular.h"
+#include "serial.h"
+#include "cmd_parse.h"
 
 // IMU协议格式：EB 90 00 [8字节本地时间戳] [8字节gnss时间戳] 40 79 [32字节IMU数据] [4字节counter]
 // len = 3 + 8 + 8 + 2 + 32 + 4 = 57
@@ -288,7 +297,7 @@ static void syncRecvAndParseMessage(void)
                             }
                             else
                             {
-                                ret = xQueueSend((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,time_stamp);
+                                ret = xQueueSend((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,time_stamp,MAX_QUEUE_MSG_NUM);
                                 if(ret == -1)
                                 {
                                     fprintf(stderr, "%s: send sync camera time stamp queue msg failed\n",__func__);

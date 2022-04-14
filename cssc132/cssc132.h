@@ -1,20 +1,7 @@
 #ifndef __CSSC132_H
 #define __CSSC132_H
 
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h> 
-#include <stdbool.h>
-#include <unistd.h>
-#include <sys/types.h>    
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/select.h>
-#include <sys/mman.h>
-#include <linux/videodev2.h>
-#include "monocular.h"
-#include "cmd_parse.h"
 
 
 #define CSSC132_MAX_SUPPORT_FORMAT_NUM              10

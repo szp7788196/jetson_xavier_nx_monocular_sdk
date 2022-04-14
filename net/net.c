@@ -1,4 +1,17 @@
 #include "net.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
+#include <pthread.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include "monocular.h"
+#include "serial.h"
+#include "cmd_parse.h"
 
 
 static const char encodingTable [64] = 
@@ -254,7 +267,7 @@ static int recvNtripDataAndSendToNtripMsg(void)
                     ntrip_rtcm_msg->len = revc_len;
                     memcpy(ntrip_rtcm_msg->msg,msg,revc_len);
 
-                    ret = xQueueSend((key_t)KEY_NTRIP_RTCM_MSG,ntrip_rtcm_msg);
+                    ret = xQueueSend((key_t)KEY_NTRIP_RTCM_MSG,ntrip_rtcm_msg,MAX_QUEUE_MSG_NUM);
                     if(ret == -1)
                     {
                         fprintf(stderr, "%s: send ntrip rtcm queue msg failed\n",__func__);

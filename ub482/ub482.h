@@ -1,13 +1,6 @@
 #ifndef __UB482_H
 #define __UB482_H
 
-#include <sys/time.h>
-#include <math.h>
-#include "monocular.h"
-#include "serial.h"
-#include "cmd_parse.h"
-
-
 
 #define MAX_UB482_BUF_LEN		1024
 #define PI                      3.141592653589793f

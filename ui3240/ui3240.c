@@ -1,4 +1,14 @@
 #include "ui3240.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h> 
+#include <unistd.h>
+#include <sys/types.h>    
+#include <sys/stat.h>
+#include <fcntl.h>
+#include "monocular.h"
+#include "cmd_parse.h"
+
 
 static struct Ui3240Config cameraConfig;
 static struct Ui3240Config userUi3240Config;
@@ -2975,7 +2985,7 @@ static void sendFrameRateMsgToThreadSync(void)
     {
         *frame_rate = cameraConfig.frame_rate;
 
-        ret = xQueueSend((key_t)KEY_FRAME_RATE_MSG,frame_rate);
+        ret = xQueueSend((key_t)KEY_FRAME_RATE_MSG,frame_rate,MAX_QUEUE_MSG_NUM);
         if(ret == -1)
         {
             fprintf(stderr, "%s: send ui3240 frame rate queue msg failed\n",__func__);
@@ -3104,7 +3114,7 @@ void *thread_ui3240(void *arg)
                                    cameraConfig.capture_timeout);
                 if(ret == IS_SUCCESS)
                 {
-                    capture_failed_cnt= 0;
+                    capture_failed_cnt = 0;
                     pthread_cond_signal(&condImageHeap);
 
 /*                     fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
