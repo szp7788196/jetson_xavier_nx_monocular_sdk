@@ -246,11 +246,11 @@ static int recvNtripDataMsgAndWriteToUb482(void)
         return -1;
     }
 
-    fprintf(stdout, "%s: recv ntrip rtcm queue msg\n",__func__);
+//    fprintf(stdout, "%s: recv ntrip rtcm queue msg\n",__func__);
 
     msg = (char *)ntrip_rtcm_msg->msg;
     msg_len = ntrip_rtcm_msg->len;
-    fprintf(stdout,"%s: msg_len = %d\n",__func__,msg_len);
+//    fprintf(stdout,"%s: msg_len = %d\n",__func__,msg_len);
 
     ret = SerialWrite(&serialSet, msg, msg_len);
 

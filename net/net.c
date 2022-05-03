@@ -217,7 +217,7 @@ static int recvNtripDataAndSendToNtripMsg(void)
     revc_len = recv(socketFd, recv_buf, MAX_NET_BUF_LEN - 1, 0);
     if(revc_len > 0)
     {
-        printf("recv_len:%d\n",revc_len);
+//        printf("recv_len:%d\n",revc_len);
         recv_null_cnt = 0;
 
         if(revc_len >= 12)

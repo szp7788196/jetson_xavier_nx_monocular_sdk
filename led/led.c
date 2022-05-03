@@ -34,10 +34,10 @@ void *thread_led(void *arg)
     unsigned char led_gnss_state = 0;
 
     /* 打开设备 */
-	ledFd = open("/dev/gpio-led", O_RDWR);
+	ledFd = open("/dev/gpio_led", O_RDWR);
 	if(0 > ledFd) 
     {
-        fprintf(stderr, "%s: open /dev/gpio-led failed\n",__func__);
+        fprintf(stderr, "%s: open /dev/gpio_led failed\n",__func__);
 		goto THREAD_EXIT;
 	}
 
@@ -45,14 +45,14 @@ void *thread_led(void *arg)
 
     while(1)
     {
-        if(cnt % 40 == 0)
+        if(cnt % 20 == 0)
 		{
 			led_run_state = ~led_run_state;
 		}
 
-        if(connectState == CONNECTED)
+        if(connectState == CONNECTED || connectState == LOGGED_IN)
         {
-            if(cnt % 300 == 0)
+            if(cnt % 150 == 0)
             {
                 led_net_state = 1;
             }
@@ -63,7 +63,7 @@ void *thread_led(void *arg)
         }
         else
         {
-            if(cnt % 25 == 0)
+            if(cnt % 15 == 0)
             {
                 led_net_state = ~led_net_state;
             }
@@ -71,7 +71,7 @@ void *thread_led(void *arg)
 
         if(gnssState == TYPE_NARROW_INT)
         {
-            if(cnt % 300 == 0)
+            if(cnt % 150 == 0)
             {
                 led_gnss_state = 1;
             }
@@ -82,14 +82,14 @@ void *thread_led(void *arg)
         }
         else if(gnssState == TYPE_NONE)
         {
-            if(cnt % 25 == 0)
+            if(cnt % 15 == 0)
             {
                 led_gnss_state = ~led_gnss_state;
             }
         }
         else
         {
-            if(cnt % 100 == 0)
+            if(cnt % 50 == 0)
             {
                 led_gnss_state = 1;
             }
@@ -134,7 +134,7 @@ void *thread_led(void *arg)
         
         cnt = (cnt + 1) & 0xFFFFFFFF;
         
-        usleep(1000 * 10);
+        usleep(1000 * 20);
     }
 
 THREAD_EXIT:

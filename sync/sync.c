@@ -8,6 +8,7 @@
 static int syncImageAndCameraTimeStamp(void)
 {
     int ret = 0;
+    int i = 0;
     struct SyncCamTimeStamp *cam_time_stamp = NULL;
     struct SyncCamTimeStamp time_stamp;
     static unsigned int image_counter = 0;
@@ -33,6 +34,7 @@ static int syncImageAndCameraTimeStamp(void)
     {
         first_sync = 0;
 
+//        CLEAR_HEAP:
         do
         {
             ret = xQueueReceive((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,(void **)&cam_time_stamp,0);
@@ -48,9 +50,20 @@ static int syncImageAndCameraTimeStamp(void)
         }
         while(ret != -1);
 
+        imageHeap.put_ptr = 0;
+
+        for(i = 0; i < imageHeap.depth; i ++)
+        {
+            imageHeap.heap[i]->image->counter = 0;
+        }
+
         ret = 0;
 
-        image_counter = imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter;
+//        image_counter = imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter;
+
+        pthread_mutex_unlock(&mutexImageHeap);
+
+        return ret;
     }
     else
     {
@@ -90,6 +103,16 @@ static int syncImageAndCameraTimeStamp(void)
 		imageHeap.get_ptr = imageHeap.put_ptr;
 	}
 
+/*     if(discard_counter < 30)
+    {
+        discard_counter ++;
+
+        if(discard_counter == 30)
+        {
+            goto CLEAR_HEAP;
+        }
+    }
+ */
     pthread_mutex_unlock(&mutexImageHeap);
 
     return ret;

@@ -2288,7 +2288,7 @@ static int setExtTriggerMode(double frame_rate, int trigger_delay, bool master)
     int min_delay;
     int max_delay;
     int current_delay;
-    unsigned int nMode = IO_FLASH_MODE_TRIGGER_HI_ACTIVE;
+    unsigned int nMode = IO_FLASH_MODE_TRIGGER_LO_ACTIVE;
 
     if(!isConnected())
     {
@@ -3114,12 +3114,11 @@ void *thread_ui3240(void *arg)
                                    cameraConfig.capture_timeout);
                 if(ret == IS_SUCCESS)
                 {
+                    fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
+                            __func__,imageHeap.heap[imageHeap.put_ptr]->image->counter,imageHeap.put_ptr);
+
                     capture_failed_cnt = 0;
                     pthread_cond_signal(&condImageHeap);
-
-/*                     fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
-                            __func__,imageHeap.heap[imageHeap.put_ptr]->image->counter,imageHeap.put_ptr);
- */
                 }
                 else
                 {

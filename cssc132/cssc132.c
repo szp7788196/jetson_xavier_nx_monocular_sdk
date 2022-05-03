@@ -2091,11 +2091,10 @@ void *thread_cssc132(void *arg)
                 ret = captureImage(cssc132Config,imageHeap.heap[imageHeap.put_ptr]->image);
                 if(ret == 0)
                 {
-                    pthread_cond_signal(&condImageHeap);
-/*
                     fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
                             __func__,imageHeap.heap[imageHeap.put_ptr]->image->counter,imageHeap.put_ptr);
-*/
+
+                    pthread_cond_signal(&condImageHeap);
                 }
             break;
 

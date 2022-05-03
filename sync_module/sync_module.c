@@ -142,17 +142,25 @@ static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data)
 
     last_counter = imu_data->counter;
 
-    time_stamp = ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 3))) << 24) & 0xFF000000) + 
-                 ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 2))) << 16) & 0x00FF0000) + 
-                 ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 1))) <<  8) & 0x0000FF00) + 
-                 ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 0))) <<  0) & 0x000000FF);
+    time_stamp = ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 7))) <<  0) & 0x00000000000000FF);
 
     imu_data->time_stamp_local = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
-    time_stamp = ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 3))) << 24) & 0xFF000000) + 
-                 ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 2))) << 16) & 0x00FF0000) + 
-                 ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 1))) <<  8) & 0x0000FF00) + 
-                 ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) <<  0) & 0x000000FF);
+    time_stamp = ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 7))) <<  0) & 0x00000000000000FF);
 
     imu_data->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
@@ -196,12 +204,13 @@ static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *c
 {
     int ret = 0;
     static unsigned int last_counter = 0;
-    unsigned int time_stamp = 0;
+    unsigned long time_stamp = 0;
+    unsigned char i = 0;
 
     cam_time_stamp->counter = ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 0))) << 24) & 0xFF000000) + 
-                               ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 1))) << 16) & 0x00FF0000) + 
-                               ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 2))) <<  8) & 0x0000FF00) + 
-                               ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 3))) <<  0) & 0x000000FF);
+                              ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 1))) << 16) & 0x00FF0000) + 
+                              ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 2))) <<  8) & 0x0000FF00) + 
+                              ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 3))) <<  0) & 0x000000FF);
     if(last_counter > 0)
     {
         if(cam_time_stamp->counter - last_counter != 1)
@@ -212,21 +221,29 @@ static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *c
 
     last_counter = cam_time_stamp->counter;
 
-    time_stamp = ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 3))) << 24) & 0xFF000000) + 
-                 ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 2))) << 16) & 0x00FF0000) + 
-                 ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 1))) <<  8) & 0x0000FF00) + 
-                 ((((unsigned int)(*(inbuf + POS_LOCAL_TIME_STAMP + 0))) <<  0) & 0x000000FF);
+    time_stamp = ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) + 
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 7))) <<  0) & 0x00000000000000FF);
 
     cam_time_stamp->time_stamp_local = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
-    time_stamp = ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 3))) << 24) & 0xFF000000) + 
-                 ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 2))) << 16) & 0x00FF0000) + 
-                 ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 1))) <<  8) & 0x0000FF00) + 
-                 ((((unsigned int)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) <<  0) & 0x000000FF);
+    time_stamp = ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) + 
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 7))) <<  0) & 0x00000000000000FF);
 
-    cam_time_stamp->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
+    cam_time_stamp->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ; 
 
-    // fprintf(stderr, "%s: camera time stamp counter is %d\n",__func__,cam_time_stamp->counter);
+//    fprintf(stderr, "%s: time_stamp ======================================= %lf\n",__func__,cam_time_stamp->time_stamp_local);
 
     return ret;
 }
