@@ -12,6 +12,7 @@
 #include "sync.h"
 #include "handler.h"
 
+
 struct ImageHeap imageHeap = {NULL,0,0,0};
 struct ImuAdis16505Heap imuAdis16505Heap = {NULL,0,0,0};
 struct ImuMpu9250Heap imuMpu9250Heap = {NULL,0,0,0};
@@ -64,26 +65,26 @@ unsigned char CalCheckOr(unsigned char *buf, unsigned short len)
 	return sum;
 }
 
-static unsigned int getbitu(const unsigned char *buff, int pos, int len) 
+static unsigned int getbitu(const unsigned char *buff, int pos, int len)
 {
 	unsigned int bits = 0;
 	int i;
-	
+
 	for(i = pos; i < pos + len; i ++) bits = (bits << 1) + ((buff[i / 8] >> (7 - i % 8)) & 1u);
-	
+
 	return bits;
 }
-static unsigned int rtk_crc24q(const unsigned char *buff, int len) 
+static unsigned int rtk_crc24q(const unsigned char *buff, int len)
 {
 	unsigned int crc = 0;
 	int i;
 
 	for(i = 0; i < len; i ++) crc = ((crc << 8) & 0xFFFFFF) ^ tbl_CRC24Q[(crc >> 16) ^ buff[i]];
-	
+
 	return crc;
 }
 
-int check_rtcm3(const unsigned char *data, unsigned int data_len) 
+int check_rtcm3(const unsigned char *data, unsigned int data_len)
 {
     int ret = 0;
 	int nbyte = 0;
@@ -99,9 +100,9 @@ int check_rtcm3(const unsigned char *data, unsigned int data_len)
 				fprintf(stderr, "%s: not correct preamb\n",__func__);
 				continue;
 			}
-			
+
 			buff[nbyte ++] = data[i];
-		} 
+		}
 		else
 		{
 			buff[nbyte ++] = data[i];
@@ -113,7 +114,7 @@ int check_rtcm3(const unsigned char *data, unsigned int data_len)
 				{
                     ret = -1;
 				}
-                
+
 				nbyte = 0;
 				len = 0;
 			}
@@ -129,9 +130,9 @@ int check_rtcm3(const unsigned char *data, unsigned int data_len)
 }
 
 //在str1中查找str2，失败返回0xFF,成功返回str2首个元素在str1中的位置
-unsigned short mystrstr(unsigned char *str1, 
-                        unsigned char *str2, 
-						unsigned short str1_len, 
+unsigned short mystrstr(unsigned char *str1,
+                        unsigned char *str2,
+						unsigned short str1_len,
 						unsigned short str2_len)
 {
 	unsigned short len = str1_len;
@@ -154,9 +155,9 @@ unsigned short mystrstr(unsigned char *str1,
 	}
 }
 
-unsigned short find_str(unsigned char *s_str, 
-                        unsigned char *p_str, 
-						unsigned short count, 
+unsigned short find_str(unsigned char *s_str,
+                        unsigned char *p_str,
+						unsigned short count,
 						unsigned short *seek)
 {
 	unsigned short _count = 1;
@@ -171,7 +172,7 @@ unsigned short find_str(unsigned char *s_str,
     {
         return 0;
     }
-        
+
     for(temp_str = s_str; *temp_str != '\0'; temp_str ++)
     {
         temp_char = temp_str;
@@ -224,11 +225,11 @@ int search_str(unsigned char *source, unsigned char *target)
     }
 }
 
-unsigned short get_str1(unsigned char *source, 
-                        unsigned char *begin, 
-						unsigned short count1, 
-						unsigned char *end, 
-						unsigned short count2, 
+unsigned short get_str1(unsigned char *source,
+                        unsigned char *begin,
+						unsigned short count1,
+						unsigned char *end,
+						unsigned short count2,
 						unsigned char *out)
 {
 	unsigned short i;
@@ -256,10 +257,10 @@ unsigned short get_str1(unsigned char *source,
     return length;
 }
 
-unsigned short get_str2(unsigned char *source, 
-                        unsigned char *begin, 
-						unsigned short count, 
-						unsigned short length, 
+unsigned short get_str2(unsigned char *source,
+                        unsigned char *begin,
+						unsigned short count,
+						unsigned short length,
 						unsigned char *out)
 {
 	unsigned short i = 0;
@@ -351,6 +352,131 @@ void StrToHex(unsigned char *pbDest, char *pbSrc, unsigned short len)
 	}
 }
 
+int AT_SendCmd(struct Serial *sn,
+               char* cmd,
+               char *result,
+			   char *rsp_buf,				 //命令返回信息
+               unsigned int waittime,        //两个指令间的时间间隔ms
+               unsigned char retry,          //失败重试次数
+               unsigned int timeout)         //指令返回超时ms
+{
+	char *msg_p = NULL;
+	unsigned int  newtime = 0;
+	unsigned char retry_num = 0;
+    unsigned char retryflag = 0;
+    char result_buf[64];
+    char flag_ok = 0;
+
+	memset(result_buf,0,64);
+
+    fprintf(stdout,"%s: cmd:%s\n",__func__,cmd);
+
+    SerialWrite(sn, cmd, strlen((const char *)cmd));
+
+	while(1)
+	{
+        usleep(10 * 1000);
+
+		if(newtime >= timeout)
+		{
+			if(++ retry_num > retry)
+				return -1;
+
+			retryflag = 1;
+		}
+
+        flag_ok = SerialRead(sn, result_buf, 64);
+
+		if(flag_ok > 0)
+		{
+			fprintf(stdout,"%s: cmd_rsp:%s\n",__func__,result_buf);
+
+			if(rsp_buf != NULL)
+			{
+				memcpy(rsp_buf,result_buf,flag_ok);
+			}
+
+			flag_ok = 0;
+
+			msg_p = strstr((char *)result_buf,(char *)result);
+
+			if(msg_p != NULL)
+			{
+				break;
+			}
+		}
+		else
+		{
+			newtime ++;
+		}
+
+		if(retryflag == 1)
+		{
+			retryflag = 0;
+			newtime = 0;
+
+			if(retry_num > 0 && retry_num < retry + 1)
+			{
+				fprintf(stderr,"%s: retry cmd:\n%s",__func__,cmd);
+
+                SerialWrite(sn, cmd, strlen((const char *)cmd));
+			}
+		}
+	}
+
+	usleep(waittime * 1000);
+
+	return 0;
+}
+
+int queryEC20_IMEI(char *imei)
+{
+	int ret = 0;
+	static struct Serial serial_ec20;
+	char temp_buf[64] = {0};
+	char buf[32] = {0};
+
+	if(imei == NULL)
+	{
+		return -1;
+		fprintf(stderr, "%s: input param is null\n",__func__);
+	}
+
+	ret = SerialInit(&serial_ec20,
+                     "/dev/ttyUSB4",
+                     SPABAUD_115200,
+                     SPASTOPBITS_1,
+                     SPAPROTOCOL_NONE,
+                     SPAPARITY_NONE,
+                     SPADATABITS_8,0);
+	if(ret)
+    {
+        fprintf(stderr, "%s: open EC20 AT CMD serial port: /dev/ttyUSB4 failed\n",__func__);
+		return -1;
+    }
+
+	ret = AT_SendCmd(&serial_ec20,"ATE0\r\n", "OK", NULL,100,0,100);
+	if(ret == -1)
+    {
+        fprintf(stderr, "%s: ATE0 response failed\n",__func__);
+    }
+
+	ret = AT_SendCmd(&serial_ec20,"AT+CGSN\r\n","OK",temp_buf,100,0,100);
+    if(ret == -1)
+    {
+        fprintf(stderr, "%s: AT+CGSN response failed\n",__func__);
+    }
+
+	get_str1((unsigned char *)temp_buf, "\r\n", 1, "\r\n", 2, (unsigned char *)buf);
+
+	if(strlen(buf) == 15)
+	{
+		memcpy(imei,buf,15);
+	}
+
+	return 0;
+}
+
 int xQueueSend(key_t queue_key,void *msg_to_queue,unsigned short queue_depth)
 {
 	int ret = 0;
@@ -434,19 +560,19 @@ int xQueueReceive(key_t queue_key,void **msg_from_queue,unsigned char block)
 	{
 		ret = msgrcv(msg_id,&msg,sizeof(msg.mtext),1,IPC_NOWAIT);
 	}
-	
+
     if(ret == -1)
     {
         return -1;
     }
 
-	*msg_from_queue = (void *)((((long)msg.mtext[0] << 56) & 0xFF00000000000000) + 
-                               (((long)msg.mtext[1] << 48) & 0x00FF000000000000) + 
-                               (((long)msg.mtext[2] << 40) & 0x0000FF0000000000) + 
-                               (((long)msg.mtext[3] << 32) & 0x000000FF00000000) + 
-                               (((long)msg.mtext[4] << 24) & 0x00000000FF000000) + 
-                               (((long)msg.mtext[5] << 16) & 0x0000000000FF0000) + 
-                               (((long)msg.mtext[6] <<  8) & 0x000000000000FF00) + 
+	*msg_from_queue = (void *)((((long)msg.mtext[0] << 56) & 0xFF00000000000000) +
+                               (((long)msg.mtext[1] << 48) & 0x00FF000000000000) +
+                               (((long)msg.mtext[2] << 40) & 0x0000FF0000000000) +
+                               (((long)msg.mtext[3] << 32) & 0x000000FF00000000) +
+                               (((long)msg.mtext[4] << 24) & 0x00000000FF000000) +
+                               (((long)msg.mtext[5] << 16) & 0x0000000000FF0000) +
+                               (((long)msg.mtext[6] <<  8) & 0x000000000000FF00) +
                                (((long)msg.mtext[7] <<  0) & 0x00000000000000FF));
 
 	return ret;
@@ -592,7 +718,7 @@ int allocateImageHeap(unsigned short depth,unsigned int image_size)
 	}
 
 	for(i = 0; i < imageHeap.depth; i ++)
-	{	
+	{
 		imageHeap.heap[i] = NULL;
 		imageHeap.heap[i] = (struct ImageHeapUnit *)malloc(sizeof(struct ImageHeapUnit));
 		if(imageHeap.heap[i] == NULL)
@@ -845,7 +971,7 @@ int imageHeapGet(struct ImageHeapUnit *data)
 		return -1;
 	}
 
-	pthread_mutex_lock(&mutexImageHeap); 
+	pthread_mutex_lock(&mutexImageHeap);
 
 	if(imageHeap.cnt > 0)
 	{
@@ -871,7 +997,7 @@ int imuAdis16505HeapPut(struct SyncImuData *data)
 		return -1;
 	}
 
-	pthread_mutex_lock(&mutexImuAdis16505Heap); 
+	pthread_mutex_lock(&mutexImuAdis16505Heap);
 
 	memcpy(imuAdis16505Heap.heap[imuAdis16505Heap.put_ptr],data,sizeof(struct SyncImuData));
 
@@ -911,7 +1037,7 @@ int imuAdis16505HeapGet(struct SyncImuData *data)
 		return -1;
 	}
 
-	pthread_mutex_lock(&mutexImuAdis16505Heap); 
+	pthread_mutex_lock(&mutexImuAdis16505Heap);
 
 	if(imuAdis16505Heap.cnt > 0)
 	{
@@ -937,7 +1063,7 @@ int imuMpu9250HeapPut(struct Mpu9250SampleData *data)
 		return -1;
 	}
 
-	pthread_mutex_lock(&mutexImuMpu9250Heap); 
+	pthread_mutex_lock(&mutexImuMpu9250Heap);
 
 	memcpy(imuMpu9250Heap.heap[imuMpu9250Heap.put_ptr],data,sizeof(struct Mpu9250SampleData));
 
@@ -976,7 +1102,7 @@ int imuMpu9250HeapGet(struct Mpu9250SampleData *data)
 		return -1;
 	}
 
-	pthread_mutex_lock(&mutexImuMpu9250Heap); 
+	pthread_mutex_lock(&mutexImuMpu9250Heap);
 
 	if(imuMpu9250Heap.cnt > 0)
 	{
@@ -1002,7 +1128,7 @@ int gnssUb482HeapPut(struct Ub482GnssData *data)
 		return -1;
 	}
 
-	pthread_mutex_lock(&mutexGnssUb482Heap); 
+	pthread_mutex_lock(&mutexGnssUb482Heap);
 
 	memcpy(gnssUb482Heap.heap[gnssUb482Heap.put_ptr],data,sizeof(struct Ub482GnssData));
 
@@ -1041,7 +1167,7 @@ int gnssUb482HeapGet(struct Ub482GnssData *data)
 		return -1;
 	}
 
-	pthread_mutex_lock(&mutexGnssUb482Heap); 
+	pthread_mutex_lock(&mutexGnssUb482Heap);
 
 	if(gnssUb482Heap.cnt > 0)
 	{
@@ -1063,9 +1189,9 @@ int gnssUb482HeapGet(struct Ub482GnssData *data)
 * outBuf -- RGB565 data
 * image_width,image_height -- image width and height
 */
-static int convert_UYVY_To_RGB(unsigned char *in_buf, 
-                        unsigned char *out_buf, 
-						int image_width, 
+static int convert_UYVY_To_RGB(unsigned char *in_buf,
+                        unsigned char *out_buf,
+						int image_width,
 						int image_height)
 {
     int rows ,cols;	                        /* 行列标志 */
@@ -1126,7 +1252,7 @@ static int convert_UYVY_To_RGB(unsigned char *in_buf,
 			//y_pos++;
 			i ++;
 			/* 每两个Y更新一次UV */
-			if(!(i & 0x01))	
+			if(!(i & 0x01))
 			{
 				u_pos = y_pos - 1;
 				v_pos = y_pos + 1;
@@ -1184,7 +1310,7 @@ int imageBufCompressToJpeg(char * file_name,
 
     outfile = fopen(file_name, "wb");
 
-    if(outfile == NULL) 
+    if(outfile == NULL)
     {
         fprintf(stderr, "%s: can't open %s\n",__func__,file_name);
         return -1;
@@ -1224,7 +1350,7 @@ int imageBufCompressToJpeg(char * file_name,
 
     while(com_cinfo.next_scanline < com_cinfo.image_height)
     {
-        row_pointer[0] = &rgb_buf[com_cinfo.next_scanline * row_stride];  // image_buffer指向要压缩的数据  
+        row_pointer[0] = &rgb_buf[com_cinfo.next_scanline * row_stride];  // image_buffer指向要压缩的数据
         jpeg_write_scanlines(&com_cinfo, row_pointer, 1);
     }
 

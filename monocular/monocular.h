@@ -8,6 +8,7 @@
 #include "mpu9250.h"
 #include "sync_module.h"
 #include "ub482.h"
+#include "serial.h"
 
 
 #define MAX_QUEUE_MSG_NUM				100
@@ -131,7 +132,7 @@ struct DataHandler
 };
 
 
-static const unsigned int crc32tab[] = 
+static const unsigned int crc32tab[] =
 {
 	0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL,
 	0x076dc419L, 0x706af48fL, 0xe963a535L, 0x9e6495a3L,
@@ -196,10 +197,10 @@ static const unsigned int crc32tab[] =
 	0xbdbdf21cL, 0xcabac28aL, 0x53b39330L, 0x24b4a3a6L,
 	0xbad03605L, 0xcdd70693L, 0x54de5729L, 0x23d967bfL,
 	0xb3667a2eL, 0xc4614ab8L, 0x5d681b02L, 0x2a6f2b94L,
-	0xb40bbe37L, 0xc30c8ea1L, 0x5a05df1bL, 0x2d02ef8dL 
+	0xb40bbe37L, 0xc30c8ea1L, 0x5a05df1bL, 0x2d02ef8dL
 };
 
-static const unsigned int tbl_CRC24Q[] = 
+static const unsigned int tbl_CRC24Q[] =
 {
     0x000000,0x864CFB,0x8AD50D,0x0C99F6,0x93E6E1,0x15AA1A,0x1933EC,0x9F7F17,
     0xA18139,0x27CDC2,0x2B5434,0xAD18CF,0x3267D8,0xB42B23,0xB8B2D5,0x3EFE2E,
@@ -252,29 +253,37 @@ unsigned int CRC32(unsigned char *buf, unsigned int size);
 unsigned short CalCheckSum(unsigned char *buf, unsigned short len);
 unsigned char CalCheckOr(unsigned char *buf, unsigned short len);
 int check_rtcm3(const unsigned char *data, unsigned int data_len);
-unsigned short mystrstr(unsigned char *str1, 
-                        unsigned char *str2, 
-						unsigned short str1_len, 
+unsigned short mystrstr(unsigned char *str1,
+                        unsigned char *str2,
+						unsigned short str1_len,
 						unsigned short str2_len);
-unsigned short find_str(unsigned char *s_str, 
-                        unsigned char *p_str, 
-						unsigned short count, 
+unsigned short find_str(unsigned char *s_str,
+                        unsigned char *p_str,
+						unsigned short count,
 						unsigned short *seek);
 int search_str(unsigned char *source, unsigned char *target);
-unsigned short get_str1(unsigned char *source, 
-                        unsigned char *begin, 
-						unsigned short count1, 
-						unsigned char *end, 
-						unsigned short count2, 
+unsigned short get_str1(unsigned char *source,
+                        unsigned char *begin,
+						unsigned short count1,
+						unsigned char *end,
+						unsigned short count2,
 						unsigned char *out);
-unsigned short get_str2(unsigned char *source, 
-                        unsigned char *begin, 
-						unsigned short count, 
-						unsigned short length, 
+unsigned short get_str2(unsigned char *source,
+                        unsigned char *begin,
+						unsigned short count,
+						unsigned short length,
 						unsigned char *out);
 int my_toupper(int ch);
 void HexToStr(char *pbDest, unsigned char *pbSrc, unsigned short len);
 void StrToHex(unsigned char *pbDest, char *pbSrc, unsigned short len);
+int AT_SendCmd(struct Serial *sn,
+               char* cmd,
+               char *result,
+			   char *rsp_buf,
+               unsigned int waittime,
+               unsigned char retry,
+               unsigned int timeout);
+int queryEC20_IMEI(char *imei);
 int xQueueSend(key_t queue_key,void *msg_to_queue,unsigned short queue_depth);
 int xQueueReceive(key_t queue_key,void **msg_from_queue,unsigned char block);
 void freeImageHeap(void);

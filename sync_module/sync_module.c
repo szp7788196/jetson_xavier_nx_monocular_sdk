@@ -24,7 +24,7 @@ static int sync_serial_init(struct CmdArgs *args)
     int ret = 0;
 
     OPEN_SERIAL:
-    ret = SerialInit(&serialSync, 
+    ret = SerialInit(&serialSync,
                      args->serial3,
                      args->baudrate3,
                      args->stopbits3,
@@ -55,7 +55,7 @@ static int syncSetCamTrigFreq(unsigned short freq_hz)
 
     memcpy(tmp, &num, sizeof(unsigned int));
 
-    for(i = 0; i < 4; i ++) 
+    for(i = 0; i < 4; i ++)
     {
         msg[3 + i] = tmp[3 - i];
     }
@@ -111,7 +111,7 @@ static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data)
     unsigned short check_sum_cal = 0;
     unsigned short check_sum_recv = 0;
     static unsigned int last_counter = 0;
-    unsigned int time_stamp = 0;
+    unsigned long time_stamp = 0;
 
     if(*(inbuf + POS_IMU_HEAD + 0) != 0x40 || *(inbuf + POS_IMU_HEAD + 1) != 0x79)
     {
@@ -120,7 +120,7 @@ static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data)
     }
 
     check_sum_cal = CalCheckSum(inbuf + POS_IMU_PAYLOAD, IMU_PAYLOAD_LEN - 2);
-    check_sum_recv = ((((unsigned short)(*(inbuf + POS_IMU_CHECK + 0))) << 8) & 0xFF00) + 
+    check_sum_recv = ((((unsigned short)(*(inbuf + POS_IMU_CHECK + 0))) << 8) & 0xFF00) +
                      ((((unsigned short)(*(inbuf + POS_IMU_CHECK + 1))) << 0) & 0x00FF);
     if(check_sum_cal != check_sum_recv)
     {
@@ -128,9 +128,9 @@ static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data)
         return -1;
     }
 
-    imu_data->counter = ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 0))) << 24) & 0xFF000000) + 
-                        ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 1))) << 16) & 0x00FF0000) + 
-                        ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 2))) <<  8) & 0x0000FF00) + 
+    imu_data->counter = ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 0))) << 24) & 0xFF000000) +
+                        ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 1))) << 16) & 0x00FF0000) +
+                        ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 2))) <<  8) & 0x0000FF00) +
                         ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 3))) <<  0) & 0x000000FF);
     if(last_counter > 0)
     {
@@ -142,59 +142,59 @@ static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data)
 
     last_counter = imu_data->counter;
 
-    time_stamp = ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) + 
-                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) + 
-                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) + 
-                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) + 
-                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) + 
-                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) + 
-                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) + 
+    time_stamp = ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) +
                  ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 7))) <<  0) & 0x00000000000000FF);
 
     imu_data->time_stamp_local = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
-    time_stamp = ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) + 
-                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) + 
-                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) + 
-                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) + 
-                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) + 
-                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) + 
-                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) + 
+    time_stamp = ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) +
                  ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 7))) <<  0) & 0x00000000000000FF);
 
     imu_data->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
-    imu_data->gx = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 2))) << 24) & 0xFF000000) + 
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 3))) << 16) & 0x00FF0000) + 
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 0))) <<  8) & 0x0000FF00) + 
+    imu_data->gx = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 2))) << 24) & 0xFF000000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 3))) << 16) & 0x00FF0000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 0))) <<  8) & 0x0000FF00) +
                    ((((int)(*(inbuf + POS_IMU_PAYLOAD + 1))) <<  0) & 0x000000FF);
 
-    imu_data->gy = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 6))) << 24) & 0xFF000000) + 
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 7))) << 16) & 0x00FF0000) + 
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 4))) <<  8) & 0x0000FF00) + 
+    imu_data->gy = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 6))) << 24) & 0xFF000000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 7))) << 16) & 0x00FF0000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 4))) <<  8) & 0x0000FF00) +
                    ((((int)(*(inbuf + POS_IMU_PAYLOAD + 5))) <<  0) & 0x000000FF);
 
-    imu_data->gz = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 10))) << 24) & 0xFF000000) + 
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 11))) << 16) & 0x00FF0000) + 
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD +  8))) <<  8) & 0x0000FF00) + 
+    imu_data->gz = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 10))) << 24) & 0xFF000000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 11))) << 16) & 0x00FF0000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD +  8))) <<  8) & 0x0000FF00) +
                    ((((int)(*(inbuf + POS_IMU_PAYLOAD +  9))) <<  0) & 0x000000FF);
 
-    imu_data->ax = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 14))) << 24) & 0xFF000000) + 
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 15))) << 16) & 0x00FF0000) + 
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 12))) <<  8) & 0x0000FF00) + 
+    imu_data->ax = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 14))) << 24) & 0xFF000000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 15))) << 16) & 0x00FF0000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 12))) <<  8) & 0x0000FF00) +
                    ((((int)(*(inbuf + POS_IMU_PAYLOAD + 13))) <<  0) & 0x000000FF);
 
-    imu_data->ay = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 18))) << 24) & 0xFF000000) + 
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 19))) << 16) & 0x00FF0000) + 
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 16))) <<  8) & 0x0000FF00) + 
+    imu_data->ay = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 18))) << 24) & 0xFF000000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 19))) << 16) & 0x00FF0000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 16))) <<  8) & 0x0000FF00) +
                    ((((int)(*(inbuf + POS_IMU_PAYLOAD + 17))) <<  0) & 0x000000FF);
 
-    imu_data->az = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 22))) << 24) & 0xFF000000) + 
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 23))) << 16) & 0x00FF0000) + 
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 20))) <<  8) & 0x0000FF00) + 
+    imu_data->az = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 22))) << 24) & 0xFF000000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 23))) << 16) & 0x00FF0000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 20))) <<  8) & 0x0000FF00) +
                    ((((int)(*(inbuf + POS_IMU_PAYLOAD + 21))) <<  0) & 0x000000FF);
 
-    imu_data->temperature = ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 24))) << 8) & 0xFF00) + 
+    imu_data->temperature = ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 24))) << 8) & 0xFF00) +
                             ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 25))) << 0) & 0x00FF);
 
     return ret;
@@ -207,9 +207,9 @@ static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *c
     unsigned long time_stamp = 0;
     unsigned char i = 0;
 
-    cam_time_stamp->counter = ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 0))) << 24) & 0xFF000000) + 
-                              ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 1))) << 16) & 0x00FF0000) + 
-                              ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 2))) <<  8) & 0x0000FF00) + 
+    cam_time_stamp->counter = ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 0))) << 24) & 0xFF000000) +
+                              ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 1))) << 16) & 0x00FF0000) +
+                              ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 2))) <<  8) & 0x0000FF00) +
                               ((((unsigned int)(*(inbuf + POS_CAM_TIME_STAMP_CNT + 3))) <<  0) & 0x000000FF);
     if(last_counter > 0)
     {
@@ -221,27 +221,27 @@ static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *c
 
     last_counter = cam_time_stamp->counter;
 
-    time_stamp = ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) + 
-                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) + 
-                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) + 
-                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) + 
-                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) + 
-                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) + 
-                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) + 
+    time_stamp = ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) +
                  ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 7))) <<  0) & 0x00000000000000FF);
 
     cam_time_stamp->time_stamp_local = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
-    time_stamp = ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) + 
-                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) + 
-                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) + 
-                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) + 
-                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) + 
-                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) + 
-                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) + 
+    time_stamp = ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) +
                  ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 7))) <<  0) & 0x00000000000000FF);
 
-    cam_time_stamp->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ; 
+    cam_time_stamp->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
 //    fprintf(stderr, "%s: time_stamp ======================================= %lf\n",__func__,cam_time_stamp->time_stamp_local);
 
@@ -282,7 +282,7 @@ static void syncRecvAndParseMessage(void)
             {
                 frame_len = 23;
             }
-            
+
             if(frame_len)
             {
                 if(frame_len <= recv_len)

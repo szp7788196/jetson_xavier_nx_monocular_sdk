@@ -177,12 +177,12 @@ static int ub482_config_init(enum SerialBaudrate baudrate)
 
     snprintf(buf, 32, "CONFIG COM1 %ld\r\n",rate);
 
-    ret1 = ub482_send_config_cmd(&serialSet,buf,                             "response: OK",100,10,100);
-    ret2 = ub482_send_config_cmd(&serialSet,"GPGGA COM1 1\r\n",              "response: OK",100,10,100);
-    ret3 = ub482_send_config_cmd(&serialSet,"LOG COM1 BESTPOSA ONTIME 1\r\n","response: OK",100,10,100);
-    ret4 = ub482_send_config_cmd(&serialSet,"LOG COM1 BESTVELA ONTIME 1\r\n","response: OK",100,10,100);
-    ret5 = ub482_send_config_cmd(&serialSet,"LOG COM1 HEADINGA ONTIME 1\r\n","response: OK",100,10,100);
-    ret6 = ub482_send_config_cmd(&serialSet,"LOG COM1 TIMEA ONTIME 1\r\n",   "response: OK",100,10,100);
+    ret1 = AT_SendCmd(&serialSet,buf,                             "response: OK",NULL,100,10,100);
+    ret2 = AT_SendCmd(&serialSet,"GPGGA COM1 1\r\n",              "response: OK",NULL,100,10,100);
+    ret3 = AT_SendCmd(&serialSet,"LOG COM1 BESTPOSA ONTIME 1\r\n","response: OK",NULL,100,10,100);
+    ret4 = AT_SendCmd(&serialSet,"LOG COM1 BESTVELA ONTIME 1\r\n","response: OK",NULL,100,10,100);
+    ret5 = AT_SendCmd(&serialSet,"LOG COM1 HEADINGA ONTIME 1\r\n","response: OK",NULL,100,10,100);
+    ret6 = AT_SendCmd(&serialSet,"LOG COM1 TIMEA ONTIME 1\r\n",   "response: OK",NULL,100,10,100);
 
     if(ret1 || ret2 || ret3 || ret4 || ret5 || ret6)
     {
@@ -197,7 +197,7 @@ static int ub482_serial_init(struct CmdArgs *args)
     int ret = 0;
 
     OPEN_SERIAL1:
-    ret = SerialInit(&serialSet, 
+    ret = SerialInit(&serialSet,
                      args->serial1,
                      args->baudrate1,
                      args->stopbits1,
@@ -371,7 +371,7 @@ static void getBestPositionData(char *msg, int msg_len)
     ub482GnssData.time_stamp = (double)(weeks * 7 * 24 * 3600) + seconds;
 
     pos = mystrstr((unsigned char *)msg, (unsigned char *)";", msg_len, 1);
-    
+
     msg += (pos + 1);
 
 //    fprintf(stdout,"%s: msg:%s",__func__,msg);
@@ -443,7 +443,7 @@ static void getBestVelocityData(char *msg, int msg_len)
     double radian = 0.0f;
 
     pos = mystrstr((unsigned char *)msg, (unsigned char *)";", msg_len, 1);
-    
+
     msg += (pos + 1);
 
 //    fprintf(stdout,"%s: msg:%s",__func__,msg);
@@ -495,7 +495,7 @@ static void getBestAttitudeData(char *msg, int msg_len)
     char buf[32] = {0};
 
     pos = mystrstr((unsigned char *)msg, (unsigned char *)";", msg_len, 1);
-    
+
     msg += (pos + 1);
 
 //    fprintf(stdout,"%s: msg:%s",__func__,msg);
@@ -541,7 +541,7 @@ static void getBestAttitudeData(char *msg, int msg_len)
     }
     ub482GnssData.pitch_std = atof(buf);
 
-    ub482GnssData.roll_std = 9999.0f;    
+    ub482GnssData.roll_std = 9999.0f;
 }
 
 void sendTimeStampMsgToThreadSync(void)
@@ -579,8 +579,8 @@ static int recvAndParseUb482GnssData(void)
     recv_len = SerialRead(&serialGet, recv_buf, MAX_UB482_BUF_LEN - 1);
     if(recv_len > 0)
     {
-        if((recv_buf[0] != '#' && recv_buf[0] != '$') || 
-            recv_buf[recv_len - 2] != '\r' || 
+        if((recv_buf[0] != '#' && recv_buf[0] != '$') ||
+            recv_buf[recv_len - 2] != '\r' ||
             recv_buf[recv_len - 1] != '\n')
         {
             fprintf(stderr, "%s: recv invalid data\n",__func__);
@@ -602,8 +602,8 @@ static int recvAndParseUb482GnssData(void)
         else
         {
             StrToHex(check_num_buf, check_buf, 4);
-            check_num_recv = ((((unsigned int)check_num_buf[0]) << 24) & 0xFF000000) + 
-                             ((((unsigned int)check_num_buf[1]) << 16) & 0x00FF0000) + 
+            check_num_recv = ((((unsigned int)check_num_buf[0]) << 24) & 0xFF000000) +
+                             ((((unsigned int)check_num_buf[1]) << 16) & 0x00FF0000) +
                              ((((unsigned int)check_num_buf[2]) <<  8) & 0x0000FF00) +
                              ((((unsigned int)check_num_buf[3]) <<  0) & 0x000000FF);
         }
@@ -734,7 +734,7 @@ void *thread_ub482(void *arg)
     {
         recvAndParseUb482GnssData();                        //接收并解析ub482数据
         recvNtripDataMsgAndWriteToUb482();                  //接收ntrip服务器的矫正数据，并发送给UB482
-        
+
         usleep(1000 * 100);
     }
 
