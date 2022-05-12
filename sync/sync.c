@@ -70,10 +70,10 @@ static int syncImageAndCameraTimeStamp(void)
         image_counter ++;
         imageHeap.heap[imageHeap.put_ptr]->image->counter = image_counter;
 
-        if(imageHeap.heap[imageHeap.put_ptr]->image->counter != 
+        if(imageHeap.heap[imageHeap.put_ptr]->image->counter !=
            imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter)
         {
-            if(abs(imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter - 
+            if(abs(imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter -
                    imageHeap.heap[imageHeap.put_ptr]->image->counter) >= NOT_SYNC_THRESHOLD)
             {
                 fprintf(stderr, "%s: sync image and camera trigger time stamp failed\n",__func__);

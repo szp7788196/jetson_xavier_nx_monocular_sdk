@@ -9,7 +9,7 @@ set(CMAKE_BUILD_TYPE Release)
 ############################################################
 
 #Generate the static library from the library sources
-add_library(monocular SHARED 
+add_library(monocular SHARED
     cmd_parse/cmd_parse.c
     cssc132/cssc132.c
     handler/handler.c
@@ -22,9 +22,10 @@ add_library(monocular SHARED
     sync_module/sync_module.c
     ub482/ub482.c
     ui3240/ui3240.c
+    fifo/ringbuf.c
 )
 
-target_link_libraries(monocular 
+target_link_libraries(monocular
     m
     jpeg
     pthread
@@ -32,7 +33,7 @@ target_link_libraries(monocular
 )
 
 # target_include_directories(monocular
-#     PUBLIC 
+#     PUBLIC
 #         ${PROJECT_SOURCE_DIR}/serial
 #         ${PROJECT_SOURCE_DIR}/net
 #         ${PROJECT_SOURCE_DIR}/ub482
@@ -61,6 +62,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/sync_module
     ${PROJECT_SOURCE_DIR}/ub482
     ${PROJECT_SOURCE_DIR}/ui3240
+    ${PROJECT_SOURCE_DIR}/fifo
 )
 
 ############################################################
@@ -75,6 +77,6 @@ add_executable(sdk
 
 # link the new hello_library target with the monocular target
 target_link_libraries(sdk
-    PRIVATE 
+    PRIVATE
         monocular
 )

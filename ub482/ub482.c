@@ -203,7 +203,7 @@ static int ub482_serial_init(struct CmdArgs *args)
                      args->stopbits1,
                      args->protocol1,
                      args->parity1,
-                     args->databits1,1);
+                     args->databits1,1,0);
     if(ret)
     {
         fprintf(stderr, "%s: open %s failed\n",__func__,args->serial1);
@@ -220,7 +220,7 @@ static int ub482_serial_init(struct CmdArgs *args)
                      args->stopbits2,
                      args->protocol2,
                      args->parity2,
-                     args->databits2,1);
+                     args->databits2,1,0);
     if(ret)
     {
         fprintf(stderr, "%s: open %s failed\n",__func__,args->serial2);

@@ -2,11 +2,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "ui3240.h"
+#include <signal.h>
 
 int imageHandler(struct ImageHeapUnit *image)
 {
     int ret = 0;
-/* 
+/*
     ret = imageBufCompressToJpeg("/home/szp/test_image.jpg",80,(unsigned char *)image->image->image,1280,720,1);
     if(ret != 0)
     {
@@ -106,10 +108,19 @@ int gnssUb482Handler(struct Ub482GnssData *gnssUb482)
 int main(int argc, char **argv)
 {
     int ret = 0;
+    char imei[16] = {0};
 
     monocular_sdk_init(argc, argv);
 
     monocular_sdk_register_handler(imageHandler,NULL,NULL,NULL);
+
+    signal(SIGINT, pthread_ui3240_exit);
+
+/*     ret = queryEC20_IMEI(imei);
+    if(ret == 0)
+    {
+        printf("******************************* %s\n",imei);
+    } */
 
     while(1)
     {

@@ -1,9 +1,9 @@
 #include "ui3240.h"
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h> 
+#include <stdio.h>
 #include <unistd.h>
-#include <sys/types.h>    
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "monocular.h"
@@ -15,7 +15,7 @@ static struct Ui3240Config userUi3240Config;
 
 static bool isConnected(void)
 {
-    return (cameraConfig.camera_handle != (HIDS)0); 
+    return (cameraConfig.camera_handle != (HIDS)0);
 }
 
 static bool freeRunModeActive(void)
@@ -27,7 +27,7 @@ static bool freeRunModeActive(void)
 static bool extTriggerModeActive(void)
 {
     return ((cameraConfig.camera_handle != (HIDS) 0) &&
-           (is_SetExternalTrigger(cameraConfig.camera_handle, IS_GET_EXTERNALTRIGGER) == IS_SET_TRIGGER_HI_LO || 
+           (is_SetExternalTrigger(cameraConfig.camera_handle, IS_GET_EXTERNALTRIGGER) == IS_SET_TRIGGER_HI_LO ||
             is_SetExternalTrigger(cameraConfig.camera_handle, IS_GET_EXTERNALTRIGGER) == IS_SET_TRIGGER_LO_HI));
 }
 
@@ -143,7 +143,7 @@ static int setStandbyMode(void)
 
         // documentation seems to suggest that this is needed to disable external trigger mode (to go into free-run mode)
         is_SetExternalTrigger(cameraConfig.camera_handle, IS_GET_TRIGGER_STATUS);
-        
+
         is_err = is_StopLiveVideo(cameraConfig.camera_handle, IS_WAIT);
         if(is_err != IS_SUCCESS)
         {
@@ -192,7 +192,7 @@ static int setStandbyMode(void)
     }
     else if(softTriggerModeActive())
     {
-        
+
     }
 
     is_err = is_CameraStatus(cameraConfig.camera_handle, IS_STANDBY, IS_GET_STATUS);
@@ -250,7 +250,7 @@ static int connectCamrea(int camera_id)
         fprintf(stderr, "%s: Could not poll sensor information,error code is %d\n",__func__,is_err);
         return is_err;
     }
-    
+
     return is_err;
 }
 
@@ -1254,7 +1254,7 @@ static int reallocateCameraBuffer(void)
     return is_err;
 }
 
-static int setColorMode(char *mode) 
+static int setColorMode(char *mode)
 {
     int is_err = IS_SUCCESS;
 
@@ -1480,7 +1480,7 @@ static int setBinning(int rate)
     setStandbyMode();
 
     supportedRates = is_SetBinning(cameraConfig.camera_handle, IS_GET_SUPPORTED_BINNING);
-    switch(rate) 
+    switch(rate)
     {
         case 1:
             rate_flag = IS_BINNING_DISABLE;
@@ -1929,7 +1929,7 @@ static int setPixelClockRate(int clock_rate_mhz)
             return is_err;
         }
     }
-    
+
     minPixelClock = (int)pixelClockList[0];
     maxPixelClock = (int)pixelClockList[numberOfSupportedPixelClocks - 1];
 
@@ -1981,10 +1981,10 @@ static int setFlashParams(int delay_us, unsigned int duration_us)
         return is_err;
     }
 
-    delay_us = (delay_us < minFlashParams.s32Delay) ? minFlashParams.s32Delay : 
+    delay_us = (delay_us < minFlashParams.s32Delay) ? minFlashParams.s32Delay :
                ((delay_us > maxFlashParams.s32Delay) ? maxFlashParams.s32Delay : delay_us);
-    duration_us = (duration_us < minFlashParams.u32Duration && duration_us != 0) ? 
-                  minFlashParams.u32Duration : ((duration_us > maxFlashParams.u32Duration) ? 
+    duration_us = (duration_us < minFlashParams.u32Duration && duration_us != 0) ?
+                  minFlashParams.u32Duration : ((duration_us > maxFlashParams.u32Duration) ?
                   maxFlashParams.u32Duration : duration_us);
 
     newFlashParams.s32Delay = delay_us;
@@ -2078,9 +2078,9 @@ static int setCameraUserConfig(void)
         cameraConfig.capture_timeout = userUi3240Config.capture_timeout;
     }
 
-    if(cameraConfig.image_width != userUi3240Config.image_width || 
-       cameraConfig.image_height != userUi3240Config.image_height || 
-       cameraConfig.image_left != userUi3240Config.image_left || 
+    if(cameraConfig.image_width != userUi3240Config.image_width ||
+       cameraConfig.image_height != userUi3240Config.image_height ||
+       cameraConfig.image_left != userUi3240Config.image_left ||
        cameraConfig.image_top != userUi3240Config.image_top)
     {
         is_err = setResolution(userUi3240Config.image_width,userUi3240Config.image_height,
@@ -2138,11 +2138,11 @@ static int setCameraUserConfig(void)
         }
     }
 
-    if(cameraConfig.auto_gain != userUi3240Config.auto_gain || 
-       cameraConfig.master_gain != userUi3240Config.master_gain || 
-       cameraConfig.red_gain != userUi3240Config.red_gain || 
-       cameraConfig.green_gain != userUi3240Config.green_gain || 
-       cameraConfig.blue_gain != userUi3240Config.blue_gain || 
+    if(cameraConfig.auto_gain != userUi3240Config.auto_gain ||
+       cameraConfig.master_gain != userUi3240Config.master_gain ||
+       cameraConfig.red_gain != userUi3240Config.red_gain ||
+       cameraConfig.green_gain != userUi3240Config.green_gain ||
+       cameraConfig.blue_gain != userUi3240Config.blue_gain ||
        cameraConfig.gain_boost != userUi3240Config.gain_boost)
     {
         is_err = setGain(userUi3240Config.auto_gain,userUi3240Config.master_gain,userUi3240Config.red_gain,
@@ -2153,7 +2153,7 @@ static int setCameraUserConfig(void)
         }
     }
 
-    if(cameraConfig.auto_exposure != userUi3240Config.auto_exposure ||  
+    if(cameraConfig.auto_exposure != userUi3240Config.auto_exposure ||
        cameraConfig.exposure != userUi3240Config.exposure)
     {
         is_err = setExposure(userUi3240Config.auto_exposure,userUi3240Config.exposure);
@@ -2163,8 +2163,8 @@ static int setCameraUserConfig(void)
         }
     }
 
-    if(cameraConfig.auto_white_balance != userUi3240Config.auto_white_balance || 
-       cameraConfig.white_balance_red_offset != userUi3240Config.white_balance_red_offset ||  
+    if(cameraConfig.auto_white_balance != userUi3240Config.auto_white_balance ||
+       cameraConfig.white_balance_red_offset != userUi3240Config.white_balance_red_offset ||
        cameraConfig.white_balance_blue_offset != userUi3240Config.white_balance_blue_offset)
     {
         is_err = setWhiteBalance(userUi3240Config.auto_white_balance,
@@ -2176,7 +2176,7 @@ static int setCameraUserConfig(void)
         }
     }
 
-    if(cameraConfig.auto_frame_rate != userUi3240Config.auto_frame_rate ||  
+    if(cameraConfig.auto_frame_rate != userUi3240Config.auto_frame_rate ||
        cameraConfig.frame_rate != userUi3240Config.frame_rate)
     {
         is_err = setFrameRate(userUi3240Config.auto_frame_rate,userUi3240Config.frame_rate);
@@ -2205,7 +2205,7 @@ static int setCameraUserConfig(void)
         cameraConfig.ext_trigger_delay = userUi3240Config.ext_trigger_delay;
     }
 
-    if(cameraConfig.flash_delay != userUi3240Config.flash_delay ||  
+    if(cameraConfig.flash_delay != userUi3240Config.flash_delay ||
        cameraConfig.flash_duration != userUi3240Config.flash_duration)
     {
         is_err = setFlashParams(userUi3240Config.flash_delay,userUi3240Config.flash_duration);
@@ -2369,7 +2369,7 @@ static int setExtTriggerMode(double frame_rate, int trigger_delay, bool master)
         if(is_err != IS_SUCCESS)
         {
             fprintf(stderr, "%s: set trigger flash mode failed,error code is %d\n",__func__,is_err);
-        } 
+        }
 
         // // get the flash Mode to confirm
         is_err = is_IO(cameraConfig.camera_handle, IS_IO_CMD_FLASH_GET_MODE, (void *)&nMode, sizeof(nMode));
@@ -2397,26 +2397,26 @@ static int setTriggerMode(void)
     int is_err = IS_SUCCESS;
     int is_err1 = IS_SUCCESS;
 
-    if(cameraConfig.ext_trigger_mode) 
+    if(cameraConfig.ext_trigger_mode)
     {
         fprintf(stderr, "%s: Setup external trigger mode...\n",__func__);
 
         is_err = setExtTriggerMode(cameraConfig.frame_rate, cameraConfig.ext_trigger_delay, cameraConfig.master);
-        if(is_err != IS_SUCCESS) 
+        if(is_err != IS_SUCCESS)
         {
             fprintf(stderr, "%s: Setup external trigger mode failed,error code is %d\n",__func__,is_err);
             return is_err;
         }
 
         fprintf(stdout, "%s: Setup external trigger mode success\n",__func__);
-    } 
-    else 
+    }
+    else
     {
         fprintf(stdout, "%s: Setup freerun mode...\n",__func__);
         // NOTE: need to copy flash parameters to local copies since
         //       cameraConfig.flash_duration is type int, and also sizeof(int)
         //       may not equal to sizeof(INT) / sizeof(UINT)
-        
+
         is_err  = setFreeRunMode();
         is_err1 = setFlashParams(cameraConfig.flash_delay, cameraConfig.flash_duration);
         if(is_err != IS_SUCCESS || is_err1 != IS_SUCCESS)
@@ -2424,7 +2424,7 @@ static int setTriggerMode(void)
             fprintf(stderr, "%s: Setup freerun mode failed,error code is %d,%d\n",__func__,is_err,is_err1);
             return is_err;
         }
-        
+
         fprintf(stdout, "%s: Setup freerun mode success\n",__func__);
     }
 
@@ -2471,12 +2471,12 @@ static int queryCameraConfig(void)
     {
         fprintf(stderr, "%s: Current color mode is not supported by this wrapper{mono8 | bayer_rggb8 | rgb8 | bgr8}\n",__func__);
 
-        is_err = setColorMode(UI3240_DEFAULT_CLOLOR_MODE_STRING); 
+        is_err = setColorMode(UI3240_DEFAULT_CLOLOR_MODE_STRING);
         if(is_err != IS_SUCCESS)
         {
             return is_err;
         }
-   
+
         cameraConfig.color_mode = is_SetColorMode(cameraConfig.camera_handle, IS_GET_COLOR_MODE);
         cameraConfig.bits_per_pixel = 8;
     }
@@ -2564,11 +2564,11 @@ static int queryCameraConfig(void)
         if (is_err != IS_SUCCESS)
         {
             fprintf(stderr, "%s: Could not set binning rate to 1X,error code is %d\n",__func__,is_err);
-            
+
         }
 
         cameraConfig.binning = 1;
-    }   
+    }
 
     is_err  = is_SetAutoParameter(cameraConfig.camera_handle,IS_GET_ENABLE_AUTO_SENSOR_GAIN, &pval1, &pval2);
     is_err1 = is_SetAutoParameter(cameraConfig.camera_handle,IS_GET_ENABLE_AUTO_GAIN, &pval1, &pval2);
@@ -2577,7 +2577,7 @@ static int queryCameraConfig(void)
         fprintf(stderr, "%s: Failed to query auto gain mode,error code is %d\n",__func__,is_err);
         return is_err;
     }
-    
+
     cameraConfig.auto_gain = (pval1 != 0);
 
     cameraConfig.master_gain    = is_SetHardwareGain(cameraConfig.camera_handle, IS_GET_MASTER_GAIN,IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
@@ -2797,10 +2797,10 @@ static int captureImage(struct ImageBuffer *image_buf,unsigned char capture_mode
             return IS_NO_SUCCESS;
         }
 
-        pthread_mutex_lock(&mutexImageHeap); 
+        pthread_mutex_lock(&mutexImageHeap);
         is_err = is_CopyImageMem(cameraConfig.camera_handle,memory,id,image_buf->image);
         if(is_err != IS_SUCCESS)
-        {   
+        {
             pthread_mutex_unlock(&mutexImageHeap);
             fprintf(stderr, "%s: copy image buffer failed,error code is %d\n",__func__,is_err);
             return IS_NO_SUCCESS;
@@ -2858,7 +2858,7 @@ static int captureImage(struct ImageBuffer *image_buf,unsigned char capture_mode
             return IS_NO_SUCCESS;
         }
 
-        pthread_mutex_lock(&mutexImageHeap); 
+        pthread_mutex_lock(&mutexImageHeap);
         memcpy(image_buf->image, memory, cameraConfig.frame_buf_size);
 
         image_buf->size = cameraConfig.frame_buf_size;
@@ -3105,7 +3105,7 @@ void *thread_ui3240(void *arg)
                 else
                 {
                     camera_state = CAPTURE_IMAGE;
-                }   
+                }
             break;
 
             case (unsigned char)CAPTURE_IMAGE:          //采集图像
@@ -3114,9 +3114,9 @@ void *thread_ui3240(void *arg)
                                    cameraConfig.capture_timeout);
                 if(ret == IS_SUCCESS)
                 {
-                    fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
+/*                     fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
                             __func__,imageHeap.heap[imageHeap.put_ptr]->image->counter,imageHeap.put_ptr);
-
+ */
                     capture_failed_cnt = 0;
                     pthread_cond_signal(&condImageHeap);
                 }
@@ -3148,4 +3148,10 @@ void *thread_ui3240(void *arg)
             camera_state = DISCONNECT_CAMERA;
         }
     }
+}
+
+void pthread_ui3240_exit(int para)
+{
+    disconnectCamera();
+    exit(0);
 }

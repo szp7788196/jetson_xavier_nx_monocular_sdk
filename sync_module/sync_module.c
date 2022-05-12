@@ -5,9 +5,12 @@
 #include <string.h>
 #include <stdbool.h>
 #include <sys/time.h>
+#include <pthread.h>
+#include <signal.h>
 #include "monocular.h"
 #include "serial.h"
 #include "cmd_parse.h"
+#include "ringbuf.h"
 
 // IMU协议格式：EB 90 00 [8字节本地时间戳] [8字节gnss时间戳] 40 79 [32字节IMU数据] [4字节counter]
 // len = 3 + 8 + 8 + 2 + 32 + 4 = 57
@@ -17,6 +20,18 @@ static enum SyncState syncState = SET_STOP;
 static struct Serial serialSync;
 static struct SyncImuData syncImuData;
 static double frameRate = 30.0f;
+static pthread_t tid_serial_recv = 0;
+static pthread_t tid_serial_parse = 0;
+
+static pthread_cond_t condSerialParse;
+static RingBuf ring_fifo;
+static unsigned char rx_fifo[MAX_SYNC_BUF_LEN] = {0};
+static unsigned char imu_cam_data_buf[MAX_SYNC_BUF_LEN] = {0};
+static unsigned char data_type = 0x55;
+
+
+static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data);
+static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *cam_time_stamp);
 
 
 static int sync_serial_init(struct CmdArgs *args)
@@ -30,7 +45,7 @@ static int sync_serial_init(struct CmdArgs *args)
                      args->stopbits3,
                      args->protocol3,
                      args->parity3,
-                     args->databits3,0);
+                     args->databits3,0,0);
     if(ret)
     {
         fprintf(stderr, "%s: open %s failed\n",__func__,args->serial3);
@@ -40,7 +55,163 @@ static int sync_serial_init(struct CmdArgs *args)
         goto OPEN_SERIAL;
     }
 
+    ringbuf_init(&ring_fifo, rx_fifo, sizeof(rx_fifo));
+
     return ret;
+}
+
+static void *thread_serial_parse(void *arg)
+{
+    int ret = 0;
+
+    while(1)
+    {
+        pthread_mutex_lock(&mutexSyncModuleRingBuf);
+        pthread_cond_wait(&condSerialParse, &mutexSyncModuleRingBuf);
+
+        if(data_type == 0x55)
+        {
+            ret = syncParseImuData(imu_cam_data_buf,&syncImuData);
+            if(ret != 0)
+            {
+                fprintf(stderr, "%s: parse imu data failed\n",__func__);
+            }
+            else
+            {
+                imuAdis16505HeapPut(&syncImuData);
+            }
+        }
+        else if(data_type == 0xAA)
+        {
+            struct SyncCamTimeStamp *time_stamp = NULL;
+
+            time_stamp = (struct SyncCamTimeStamp *)malloc(sizeof(struct SyncCamTimeStamp));
+            if(time_stamp != NULL)
+            {
+                ret = syncParseCamTimeStamp(imu_cam_data_buf,time_stamp);
+                if(ret != 0)
+                {
+                    fprintf(stderr, "%s: parse camera time stamp failed\n",__func__);
+                }
+                else
+                {
+                    ret = xQueueSend((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,time_stamp,MAX_QUEUE_MSG_NUM);
+                    if(ret == -1)
+                    {
+                        fprintf(stderr, "%s: send sync camera time stamp queue msg failed\n",__func__);
+                    }
+                }
+            }
+        }
+
+        pthread_mutex_unlock(&mutexSyncModuleRingBuf);
+    }
+}
+
+static void *thread_serial_recv(void *arg)
+{
+    int ret = 0;
+    fd_set rd;
+    struct Serial *serial = (struct Serial *)arg;
+    struct timeval val;
+    char rxdata = 0;
+    static enum ParserState parser_state = IDLE;
+
+    while(1)
+    {
+        FD_ZERO(&rd);
+        FD_SET(serial->Stream,&rd);
+        val.tv_sec  = 2;
+		val.tv_usec = 0;
+
+        ret = select(serial->Stream + 1, &rd, NULL, NULL, &val);
+        if(ret < 0)
+        {
+            fprintf(stderr, "%s: select failed\n",__func__);
+        }
+        else if(ret == 0)
+        {
+            fprintf(stderr, "%s: select timeout\n",__func__);
+        }
+        else
+        {
+            if(FD_ISSET(serial->Stream, &rd))
+            {
+                ret = SerialWrite(serial, &rxdata, 1);
+                if(ret == 1)
+                {
+                    switch(parser_state)
+                    {
+                        case IDLE:
+                            if(rxdata == 0xEB)
+                            {
+                                parser_state = SYNC1;
+                            }
+                        break;
+
+                        case SYNC1:
+                            if(rxdata == 0x90)
+                            {
+                                parser_state = SYNC2;
+                            }
+                        break;
+
+                        case SYNC2:
+                            if(rxdata == 0x00)
+                            {
+                                parser_state = IMU_DATA;
+                                ringbuf_clear(&ring_fifo);
+                            }
+                            else if(rxdata == 0x01)
+                            {
+                                parser_state = CAM_DATA;
+                                ringbuf_clear(&ring_fifo);
+                            }
+                            else
+                            {
+                                parser_state = IDLE;
+                            }
+                        break;
+
+                        case IMU_DATA:
+                            ringbuf_put(&ring_fifo, rxdata);
+
+                            if(ringbuf_elements(&ring_fifo) == IMU_DATA_LEN)
+                            {
+                                pthread_mutex_lock(&mutexSyncModuleRingBuf);
+                                memcpy(imu_cam_data_buf,ring_fifo.data,ringbuf_elements(&ring_fifo));
+                                data_type = 0x55;
+                                pthread_mutex_unlock(&mutexSyncModuleRingBuf);
+
+                                pthread_cond_signal(&condSerialParse);
+
+                                parser_state = IDLE;
+                            }
+                        break;
+
+                        case CAM_DATA:
+                            ringbuf_put(&ring_fifo, rxdata);
+
+                            if(ringbuf_elements(&ring_fifo) == CAM_TRIGGER_DATA_LEN)
+                            {
+                                pthread_mutex_lock(&mutexSyncModuleRingBuf);
+                                memcpy(imu_cam_data_buf,ring_fifo.data,ringbuf_elements(&ring_fifo));
+                                data_type = 0xAA;
+                                pthread_mutex_unlock(&mutexSyncModuleRingBuf);
+
+                                pthread_cond_signal(&condSerialParse);
+
+                                parser_state = IDLE;
+                            }
+                        break;
+
+                        default:
+                        break;
+                    }
+                }
+            }
+        }
+    }
 }
 
 static int syncSetCamTrigFreq(unsigned short freq_hz)
@@ -248,113 +419,6 @@ static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *c
     return ret;
 }
 
-static void syncRecvAndParseMessage(void)
-{
-    int ret = 0;
-    struct timeval tv;
-    unsigned short head_pos = 0xFFFF;
-    unsigned char frame_len = 0;
-    static time_t time_sec = 0;
-    static int recv_len = 0;
-    static unsigned short recv_pos = 0;
-    static unsigned char frame_head[2] = {0xEB,0x90};
-    static unsigned char recv_buf[MAX_SYNC_BUF_LEN] = {0};
-
-    recv_len = SerialRead(&serialSync, (char *)&recv_buf[recv_pos], MAX_SYNC_BUF_LEN - recv_pos);
-    if(recv_len > 0)
-    {
-        gettimeofday(&tv,NULL);
-        time_sec = tv.tv_sec;
-
-        recv_pos = recv_pos + recv_len;
-		recv_len = recv_pos;
-
-        PARSE_LOOP:
-        frame_len = 0;
-        head_pos = mystrstr(recv_buf, frame_head, recv_len, 2);
-        if(head_pos != 0xFFFF)
-        {
-            if(recv_buf[head_pos + 2] == 0x00)
-            {
-                frame_len = 57;
-            }
-            else if(recv_buf[head_pos + 2] == 0x01)
-            {
-                frame_len = 23;
-            }
-
-            if(frame_len)
-            {
-                if(frame_len <= recv_len)
-                {
-                    // do parse...
-                    if(recv_buf[head_pos + 2] == 0x00)
-                    {
-                        ret = syncParseImuData(&recv_buf[head_pos],&syncImuData);
-                        if(ret != 0)
-                        {
-                            fprintf(stderr, "%s: parse imu data failed\n",__func__);
-                        }
-                        else
-                        {
-                            imuAdis16505HeapPut(&syncImuData);
-                        }
-                    }
-                    else if(recv_buf[head_pos + 2] == 0x01)
-                    {
-                        struct SyncCamTimeStamp *time_stamp = NULL;
-
-                        time_stamp = (struct SyncCamTimeStamp *)malloc(sizeof(struct SyncCamTimeStamp));
-                        if(time_stamp != NULL)
-                        {
-                            ret = syncParseCamTimeStamp(&recv_buf[head_pos],time_stamp);
-                            if(ret != 0)
-                            {
-                                fprintf(stderr, "%s: parse camera time stamp failed\n",__func__);
-                            }
-                            else
-                            {
-                                ret = xQueueSend((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,time_stamp,MAX_QUEUE_MSG_NUM);
-                                if(ret == -1)
-                                {
-                                    fprintf(stderr, "%s: send sync camera time stamp queue msg failed\n",__func__);
-                                }
-                            }
-                        }
-                    }
-
-                    if(recv_len > (frame_len + head_pos))
-					{
-						recv_len = recv_len - frame_len;
-						recv_pos = recv_len;
-
-						memcpy(recv_buf,&recv_buf[frame_len],recv_len);
-
-						goto PARSE_LOOP;
-					}
-					else
-					{
-						recv_pos = 0;
-						recv_len = 0;
-						frame_len = 0;
-					}
-                }
-            }
-        }
-    }
-
-    if(recv_pos != 0 || recv_len != 0)
-    {
-        gettimeofday(&tv,NULL);
-        if(tv.tv_sec - time_sec >= 1)
-        {
-            recv_pos = 0;
-            recv_len = 0;
-            frame_len = 0;
-        }
-    }
-}
-
 static int recvFrameRateMsg(void)
 {
     int ret = 0;
@@ -450,6 +514,18 @@ void *thread_sync_module(void *arg)
 
     allocateImuAdis16505Heap(args->sync_heap_depth);
 
+    ret = pthread_create(&tid_serial_recv,NULL,thread_serial_recv,&serialSync);
+    if(0 != ret)
+    {
+        fprintf(stderr, "%s: create thread_serial_recv failed\n",__func__);
+    }
+
+    ret = pthread_create(&tid_serial_parse,NULL,thread_serial_parse,NULL);
+    if(0 != ret)
+    {
+        fprintf(stderr, "%s: create thread_serial_parse failed\n",__func__);
+    }
+
     while(1)
     {
         switch((unsigned char)syncState)
@@ -490,14 +566,13 @@ void *thread_sync_module(void *arg)
                     syncState = SET_STOP;
                 }
                 recvUb482TimeStampAndSendToSyncModule();    //接收UB482时间戳并发送至同步模块
-                syncRecvAndParseMessage();                  //接收并解析同步模块的数据
             break;
 
             default:
             break;
         }
 
-        usleep(1000 * 5);
+        usleep(1000 * 100);
     }
 
 THREAD_EXIT:

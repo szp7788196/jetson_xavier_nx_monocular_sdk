@@ -15,7 +15,7 @@ enum SerialParity SerialGetParity(const char *buf, int *ressize)
     if(!strncasecmp(buf, "none", 4))
     {
         r = 4;
-        p = SPAPARITY_NONE; 
+        p = SPAPARITY_NONE;
     }
     else if(!strncasecmp(buf, "no", 2))
     {
@@ -146,7 +146,7 @@ enum SerialProtocol SerialGetProtocol(const char *buf, int *ressize)
     {
         r = 1;
         Protocol=SPAPROTOCOL_NONE;
-    
+
     }
     if(ressize)
     {
@@ -168,19 +168,30 @@ void SerialFree(struct Serial *sn)
 }
 
 int SerialInit(struct Serial *sn,
-                 const char *Device,
-                 enum SerialBaudrate Baud, 
-                 enum SerialStopbits StopBits,
-                 enum SerialProtocol Protocol,
-                 enum SerialParity Parity,
-                 enum SerialDatabits DataBits,
-                 int original)
+               const char *Device,
+               enum SerialBaudrate Baud,
+               enum SerialStopbits StopBits,
+               enum SerialProtocol Protocol,
+               enum SerialParity Parity,
+               enum SerialDatabits DataBits,
+               int original,
+               unsigned char block)
 {
     struct termios newtermios;
 
-    if((sn->Stream = open(Device, O_RDWR | O_NOCTTY | O_NONBLOCK)) <= 0)
+    if(block == 0)
     {
-        return -1;
+        if((sn->Stream = open(Device, O_RDWR | O_NOCTTY | O_NONBLOCK)) <= 0)
+        {
+            return -1;
+        }
+    }
+    else
+    {
+        if((sn->Stream = open(Device, O_RDWR | O_NOCTTY)) <= 0)
+        {
+            return -1;
+        }
     }
 
     tcgetattr(sn->Stream, &sn->Termios);
@@ -207,7 +218,8 @@ int SerialInit(struct Serial *sn,
         newtermios.c_lflag &= ~ICANON;
     }
 
-    newtermios.c_cc[VMIN] = 1;
+    newtermios.c_cc[VTIME] = 1;
+    newtermios.c_cc[VMIN] = 0;
 
     tcflush(sn->Stream, TCIOFLUSH);
     tcsetattr(sn->Stream, TCSANOW, &newtermios);
@@ -220,7 +232,7 @@ int SerialInit(struct Serial *sn,
 int SerialRead(struct Serial *sn, char *buffer, size_t size)
 {
     int j = 0;
-    
+
     j = read(sn->Stream, buffer, size);
 
     if(j < 0)

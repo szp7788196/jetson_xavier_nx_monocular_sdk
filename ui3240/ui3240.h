@@ -61,5 +61,6 @@ struct Ui3240Config
 
 void *thread_ui3240(void *arg);
 void printUi3240Config(struct Ui3240Config *config);
+void pthread_ui3240_exit(int para);
 
 #endif

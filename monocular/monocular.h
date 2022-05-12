@@ -245,6 +245,7 @@ extern pthread_mutex_t mutexImageHeap;
 extern pthread_mutex_t mutexImuAdis16505Heap;
 extern pthread_mutex_t mutexImuMpu9250Heap;
 extern pthread_mutex_t mutexGnssUb482Heap;
+extern pthread_mutex_t mutexSyncModuleRingBuf;
 extern pthread_cond_t condImageHeap;
 
 extern struct DataHandler dataHandler;

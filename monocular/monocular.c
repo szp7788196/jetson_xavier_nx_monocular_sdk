@@ -22,6 +22,7 @@ pthread_mutex_t mutexImageHeap;
 pthread_mutex_t mutexImuAdis16505Heap;
 pthread_mutex_t mutexImuMpu9250Heap;
 pthread_mutex_t mutexGnssUb482Heap;
+pthread_mutex_t mutexSyncModuleRingBuf;
 pthread_cond_t condImageHeap;
 
 struct DataHandler dataHandler = {NULL,NULL,NULL,NULL};
@@ -358,7 +359,7 @@ int AT_SendCmd(struct Serial *sn,
 			   char *rsp_buf,				 //命令返回信息
                unsigned int waittime,        //两个指令间的时间间隔ms
                unsigned char retry,          //失败重试次数
-               unsigned int timeout)         //指令返回超时ms
+               unsigned int timeout)         //指令返回超时10ms
 {
 	char *msg_p = NULL;
 	unsigned int  newtime = 0;
@@ -448,33 +449,44 @@ int queryEC20_IMEI(char *imei)
                      SPASTOPBITS_1,
                      SPAPROTOCOL_NONE,
                      SPAPARITY_NONE,
-                     SPADATABITS_8,0);
+                     SPADATABITS_8,0,0);
 	if(ret)
     {
         fprintf(stderr, "%s: open EC20 AT CMD serial port: /dev/ttyUSB4 failed\n",__func__);
-		return -1;
+		ret = -1;
+		goto error;
     }
 
 	ret = AT_SendCmd(&serial_ec20,"ATE0\r\n", "OK", NULL,100,0,100);
 	if(ret == -1)
     {
         fprintf(stderr, "%s: ATE0 response failed\n",__func__);
+		ret = -1;
+		goto error;
     }
 
-	ret = AT_SendCmd(&serial_ec20,"AT+CGSN\r\n","OK",temp_buf,100,0,100);
+	ret = AT_SendCmd(&serial_ec20,"AT+CGSN\r\n","OK",temp_buf,100,5,100);
     if(ret == -1)
     {
         fprintf(stderr, "%s: AT+CGSN response failed\n",__func__);
+		ret = -1;
+		goto error;
     }
 
-	get_str1((unsigned char *)temp_buf, "\r\n", 1, "\r\n", 2, (unsigned char *)buf);
-
-	if(strlen(buf) == 15)
+	if(ret == 0)
 	{
-		memcpy(imei,buf,15);
+		get_str1((unsigned char *)temp_buf, "\r\n", 1, "\r\n", 2, (unsigned char *)buf);
+
+		if(strlen(buf) == 15)
+		{
+			memcpy(imei,buf,15);
+		}
 	}
 
-	return 0;
+	error:
+	SerialFree(&serial_ec20);
+
+	return ret;
 }
 
 int xQueueSend(key_t queue_key,void *msg_to_queue,unsigned short queue_depth)

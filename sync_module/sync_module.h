@@ -2,18 +2,21 @@
 #define __SYNC_MODULE_H
 
 
-#define FPGA_CLOCK_HZ       20000000
-#define MAX_SYNC_BUF_LEN    1024
+#define FPGA_CLOCK_HZ           20000000
+#define MAX_SYNC_BUF_LEN        1024
 
-#define POS_LOCAL_TIME_STAMP    3
-#define POS_GNSS_TIME_STAMP     11
-#define POS_IMU_HEAD            19
-#define POS_IMU_PAYLOAD         21
-#define POS_IMU_CNT1            49
-#define POS_IMU_CHECK           51
-#define POS_IMU_CNT2            53
+#define POS_LOCAL_TIME_STAMP    0
+#define POS_GNSS_TIME_STAMP     8
+#define POS_IMU_HEAD            16
+#define POS_IMU_PAYLOAD         18
+#define POS_IMU_CNT1            46
+#define POS_IMU_CHECK           48
+#define POS_IMU_CNT2            50
 #define IMU_PAYLOAD_LEN         32
-#define POS_CAM_TIME_STAMP_CNT  19
+#define POS_CAM_TIME_STAMP_CNT  16
+
+#define IMU_DATA_LEN            54
+#define CAM_TRIGGER_DATA_LEN    20
 
 
 enum SyncState
@@ -24,7 +27,16 @@ enum SyncState
     RUNNING     = 3,            //运行
 };
 
-struct SyncImuData 
+enum ParserState {
+    IDLE        = 0,
+    SYNC1       = 1,
+    SYNC2       = 2,
+    IMU_DATA    = 3,
+    CAM_DATA    = 4,
+    COUNTER     = 5,
+};
+
+struct SyncImuData
 {
     double time_stamp_local;
     double time_stamp_gnss;

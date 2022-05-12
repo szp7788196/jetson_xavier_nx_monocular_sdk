@@ -1,0 +1,1 @@
+/usr/bin/cc -O3 -DNDEBUG   CMakeFiles/sdk.dir/main.c.o  -o sdk -Wl,-rpath,/home/szp/work/nvidia/applications/monocular_sdk/build libmonocular.so -lm -ljpeg -lpthread -lueye_api 
