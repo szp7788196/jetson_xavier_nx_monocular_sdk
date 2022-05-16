@@ -22,7 +22,6 @@ pthread_mutex_t mutexImageHeap;
 pthread_mutex_t mutexImuAdis16505Heap;
 pthread_mutex_t mutexImuMpu9250Heap;
 pthread_mutex_t mutexGnssUb482Heap;
-pthread_mutex_t mutexSyncModuleRingBuf;
 pthread_cond_t condImageHeap;
 
 struct DataHandler dataHandler = {NULL,NULL,NULL,NULL};

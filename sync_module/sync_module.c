@@ -21,13 +21,9 @@ static struct Serial serialSync;
 static struct SyncImuData syncImuData;
 static double frameRate = 30.0f;
 static pthread_t tid_serial_recv = 0;
-static pthread_t tid_serial_parse = 0;
 
-static pthread_cond_t condSerialParse;
 static RingBuf ring_fifo;
 static unsigned char rx_fifo[MAX_SYNC_BUF_LEN] = {0};
-static unsigned char imu_cam_data_buf[MAX_SYNC_BUF_LEN] = {0};
-static unsigned char data_type = 0x55;
 
 
 static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data);
@@ -60,54 +56,6 @@ static int sync_serial_init(struct CmdArgs *args)
     return ret;
 }
 
-static void *thread_serial_parse(void *arg)
-{
-    int ret = 0;
-
-    while(1)
-    {
-        pthread_mutex_lock(&mutexSyncModuleRingBuf);
-        pthread_cond_wait(&condSerialParse, &mutexSyncModuleRingBuf);
-
-        if(data_type == 0x55)
-        {
-            ret = syncParseImuData(imu_cam_data_buf,&syncImuData);
-            if(ret != 0)
-            {
-                fprintf(stderr, "%s: parse imu data failed\n",__func__);
-            }
-            else
-            {
-                imuAdis16505HeapPut(&syncImuData);
-            }
-        }
-        else if(data_type == 0xAA)
-        {
-            struct SyncCamTimeStamp *time_stamp = NULL;
-
-            time_stamp = (struct SyncCamTimeStamp *)malloc(sizeof(struct SyncCamTimeStamp));
-            if(time_stamp != NULL)
-            {
-                ret = syncParseCamTimeStamp(imu_cam_data_buf,time_stamp);
-                if(ret != 0)
-                {
-                    fprintf(stderr, "%s: parse camera time stamp failed\n",__func__);
-                }
-                else
-                {
-                    ret = xQueueSend((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,time_stamp,MAX_QUEUE_MSG_NUM);
-                    if(ret == -1)
-                    {
-                        fprintf(stderr, "%s: send sync camera time stamp queue msg failed\n",__func__);
-                    }
-                }
-            }
-        }
-
-        pthread_mutex_unlock(&mutexSyncModuleRingBuf);
-    }
-}
-
 static void *thread_serial_recv(void *arg)
 {
     int ret = 0;
@@ -137,7 +85,7 @@ static void *thread_serial_recv(void *arg)
         {
             if(FD_ISSET(serial->Stream, &rd))
             {
-                ret = SerialWrite(serial, &rxdata, 1);
+                ret = read(serial->Stream, &rxdata, 1);
                 if(ret == 1)
                 {
                     switch(parser_state)
@@ -178,12 +126,15 @@ static void *thread_serial_recv(void *arg)
 
                             if(ringbuf_elements(&ring_fifo) == IMU_DATA_LEN)
                             {
-                                pthread_mutex_lock(&mutexSyncModuleRingBuf);
-                                memcpy(imu_cam_data_buf,ring_fifo.data,ringbuf_elements(&ring_fifo));
-                                data_type = 0x55;
-                                pthread_mutex_unlock(&mutexSyncModuleRingBuf);
-
-                                pthread_cond_signal(&condSerialParse);
+                                ret = syncParseImuData(ring_fifo.data,&syncImuData);
+                                if(ret != 0)
+                                {
+                                    fprintf(stderr, "%s: parse imu data failed\n",__func__);
+                                }
+                                else
+                                {
+                                    imuAdis16505HeapPut(&syncImuData);
+                                }
 
                                 parser_state = IDLE;
                             }
@@ -194,12 +145,25 @@ static void *thread_serial_recv(void *arg)
 
                             if(ringbuf_elements(&ring_fifo) == CAM_TRIGGER_DATA_LEN)
                             {
-                                pthread_mutex_lock(&mutexSyncModuleRingBuf);
-                                memcpy(imu_cam_data_buf,ring_fifo.data,ringbuf_elements(&ring_fifo));
-                                data_type = 0xAA;
-                                pthread_mutex_unlock(&mutexSyncModuleRingBuf);
+                                struct SyncCamTimeStamp *time_stamp = NULL;
 
-                                pthread_cond_signal(&condSerialParse);
+                                time_stamp = (struct SyncCamTimeStamp *)malloc(sizeof(struct SyncCamTimeStamp));
+                                if(time_stamp != NULL)
+                                {
+                                    ret = syncParseCamTimeStamp(ring_fifo.data,time_stamp);
+                                    if(ret != 0)
+                                    {
+                                        fprintf(stderr, "%s: parse camera time stamp failed\n",__func__);
+                                    }
+                                    else
+                                    {
+                                        ret = xQueueSend((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,time_stamp,MAX_QUEUE_MSG_NUM);
+                                        if(ret == -1)
+                                        {
+                                            fprintf(stderr, "%s: send sync camera time stamp queue msg failed\n",__func__);
+                                        }
+                                    }
+                                }
 
                                 parser_state = IDLE;
                             }
@@ -283,6 +247,7 @@ static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data)
     unsigned short check_sum_recv = 0;
     static unsigned int last_counter = 0;
     unsigned long time_stamp = 0;
+    int i = 0;
 
     if(*(inbuf + POS_IMU_HEAD + 0) != 0x40 || *(inbuf + POS_IMU_HEAD + 1) != 0x79)
     {
@@ -307,7 +272,7 @@ static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data)
     {
         if(imu_data->counter - last_counter != 1)
         {
-            fprintf(stderr, "%s: imu data counter err,is not continous\n",__func__);
+            fprintf(stderr, "%s: imu data counter err,is not continous,current = %d,last = %d\n",__func__,imu_data->counter,last_counter);
         }
     }
 
@@ -386,7 +351,7 @@ static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *c
     {
         if(cam_time_stamp->counter - last_counter != 1)
         {
-            fprintf(stderr, "%s: camera time stamp counter err,is not continous\n",__func__);
+            fprintf(stderr, "%s: camera time stamp counter err,is not continous,current = %d,last = %d\n",__func__,cam_time_stamp->counter,last_counter);
         }
     }
 
@@ -518,12 +483,6 @@ void *thread_sync_module(void *arg)
     if(0 != ret)
     {
         fprintf(stderr, "%s: create thread_serial_recv failed\n",__func__);
-    }
-
-    ret = pthread_create(&tid_serial_parse,NULL,thread_serial_parse,NULL);
-    if(0 != ret)
-    {
-        fprintf(stderr, "%s: create thread_serial_parse failed\n",__func__);
     }
 
     while(1)
