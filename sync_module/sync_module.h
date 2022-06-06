@@ -58,6 +58,7 @@ struct SyncCamTimeStamp
     double time_stamp_local;
     double time_stamp_gnss;
     unsigned int counter;
+    unsigned int number;
 };
 
 

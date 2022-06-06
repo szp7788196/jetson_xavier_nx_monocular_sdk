@@ -2711,7 +2711,7 @@ static int getTimestamp(UEYETIME *timestamp,int cam_buffer_id)
 }
 */
 
-static int captureImage(struct ImageBuffer *image_buf,unsigned char capture_mode, unsigned short timeout_ms)
+static int captureImage(struct ImageHeap *image_heap,unsigned int *image_num,unsigned char capture_mode, unsigned short timeout_ms)
 {
     int is_err = IS_SUCCESS;
     static unsigned char mode = 255;
@@ -2798,7 +2798,7 @@ static int captureImage(struct ImageBuffer *image_buf,unsigned char capture_mode
         }
 
         pthread_mutex_lock(&mutexImageHeap);
-        is_err = is_CopyImageMem(cameraConfig.camera_handle,memory,id,image_buf->image);
+        is_err = is_CopyImageMem(cameraConfig.camera_handle,memory,id,image_heap->heap[imageHeap.put_ptr]->image->image);
         if(is_err != IS_SUCCESS)
         {
             pthread_mutex_unlock(&mutexImageHeap);
@@ -2806,7 +2806,8 @@ static int captureImage(struct ImageBuffer *image_buf,unsigned char capture_mode
             return IS_NO_SUCCESS;
         }
 
-        image_buf->size = cameraConfig.frame_buf_size;
+        image_heap->heap[imageHeap.put_ptr]->image->size = cameraConfig.frame_buf_size;
+        image_heap->heap[imageHeap.put_ptr]->image->number = (*image_num) ++;
         pthread_mutex_unlock(&mutexImageHeap);
 /*
         is_err = getTimestamp(&time_stamp,id);
@@ -2859,9 +2860,10 @@ static int captureImage(struct ImageBuffer *image_buf,unsigned char capture_mode
         }
 
         pthread_mutex_lock(&mutexImageHeap);
-        memcpy(image_buf->image, memory, cameraConfig.frame_buf_size);
+        memcpy(image_heap->heap[imageHeap.put_ptr]->image->image, memory, cameraConfig.frame_buf_size);
 
-        image_buf->size = cameraConfig.frame_buf_size;
+        image_heap->heap[imageHeap.put_ptr]->image->size = cameraConfig.frame_buf_size;
+        image_heap->heap[imageHeap.put_ptr]->image->number = (*image_num) ++;
         pthread_mutex_unlock(&mutexImageHeap);
     }
 
@@ -3010,12 +3012,27 @@ static int recvResetMsg(void)
     return ret;
 }
 
+static int recvSync1HzSuccessMsg(void)
+{
+    int ret = 0;
+    char *success = NULL;
+
+    ret = xQueueReceive((key_t)KEY_SYNC_1HZ_SUCCESS_MSG,(void **)&success,0);
+    if(ret == -1)
+    {
+        return -1;
+    }
+
+    return ret;
+}
+
 void *thread_ui3240(void *arg)
 {
     int ret = IS_SUCCESS;
     static unsigned char capture_failed_cnt = 0;
     struct CmdArgs *args = (struct CmdArgs *)arg;
     enum CameraState camera_state = INIT_CONFIG;
+    unsigned int image_num =  0;
 
     while(1)
     {
@@ -3109,7 +3126,7 @@ void *thread_ui3240(void *arg)
             break;
 
             case (unsigned char)CAPTURE_IMAGE:          //采集图像
-                ret = captureImage(imageHeap.heap[imageHeap.put_ptr]->image,
+                ret = captureImage(&imageHeap,&image_num,
                                    cameraConfig.capture_mode,
                                    cameraConfig.capture_timeout);
                 if(ret == IS_SUCCESS)
@@ -3133,7 +3150,7 @@ void *thread_ui3240(void *arg)
 
             case (unsigned char)DISCONNECT_CAMERA:      //断开相机链接
                 disconnectCamera();
-                usleep(1000 * 1000);
+                usleep(1000 * 10);
                 camera_state = INIT_CONFIG;
             break;
 
@@ -3145,13 +3162,14 @@ void *thread_ui3240(void *arg)
         ret = recvResetMsg();
         if(ret != -1)
         {
-            camera_state = DISCONNECT_CAMERA;
+            image_num = 0;
+//            camera_state = DISCONNECT_CAMERA;
+        }
+
+        ret = recvSync1HzSuccessMsg();
+        if(ret != -1)
+        {
+           sendFrameRateMsgToThreadSync();
         }
     }
-}
-
-void pthread_ui3240_exit(int para)
-{
-    disconnectCamera();
-    exit(0);
 }

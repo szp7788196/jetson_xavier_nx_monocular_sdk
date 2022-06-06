@@ -659,6 +659,18 @@ void clearSystemQueueMsg(void)
 		ret = xQueueReceive((key_t)KEY_GNSS_UB482_HANDLER_MSG,(void **)&pointer,0);
 	}
 	while(ret != -1);
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_SYNC_1HZ_SUCCESS_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
+
+	do
+	{
+		ret = xQueueReceive((key_t)KEY_CAMERA_READY_MSG,(void **)&pointer,0);
+	}
+	while(ret != -1);
 }
 
 void freeImageHeap(void)
@@ -1407,6 +1419,7 @@ static int pthreadCreate(void *args)
 	static pthread_t tid_imu_mpu9250_handler = 0;
 	static pthread_t tid_gnss_ub482_handler = 0;
 
+/*
     ret = pthread_create(&tid_ub482,NULL,thread_ub482,&cmdArgs);
     if(0 != ret)
     {
@@ -1418,7 +1431,7 @@ static int pthreadCreate(void *args)
     {
         fprintf(stderr, "%s: create thread_net failed\n",__func__);
     }
-
+*/
     ret = pthread_create(&tid_mpu9250,NULL,thread_mpu9250,&cmdArgs);
     if(0 != ret)
     {

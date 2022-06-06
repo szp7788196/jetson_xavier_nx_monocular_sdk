@@ -13,6 +13,7 @@ static int syncImageAndCameraTimeStamp(void)
     struct SyncCamTimeStamp time_stamp;
     static unsigned int image_counter = 0;
     static char first_sync = 1;
+    static char sync_1hz_success = 0;
 
     ret = xQueueReceive((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,(void **)&cam_time_stamp,1);
     if(ret == -1)
@@ -33,8 +34,8 @@ static int syncImageAndCameraTimeStamp(void)
     if(first_sync == 1)
     {
         first_sync = 0;
+        sync_1hz_success = 0;
 
-//        CLEAR_HEAP:
         do
         {
             ret = xQueueReceive((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,(void **)&cam_time_stamp,0);
@@ -50,20 +51,20 @@ static int syncImageAndCameraTimeStamp(void)
         }
         while(ret != -1);
 
+        image_counter = imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter;
+
         imageHeap.put_ptr = 0;
 
         for(i = 0; i < imageHeap.depth; i ++)
         {
             imageHeap.heap[i]->image->counter = 0;
+            imageHeap.heap[i]->image->number = 0;
+            imageHeap.heap[i]->time_stamp->number = 0;
         }
 
         ret = 0;
 
-//        image_counter = imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter;
-
-        pthread_mutex_unlock(&mutexImageHeap);
-
-        return ret;
+        goto GET_OUT;
     }
     else
     {
@@ -71,19 +72,45 @@ static int syncImageAndCameraTimeStamp(void)
         imageHeap.heap[imageHeap.put_ptr]->image->counter = image_counter;
 
         if(imageHeap.heap[imageHeap.put_ptr]->image->counter !=
-           imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter)
+           imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter ||
+           imageHeap.heap[imageHeap.put_ptr]->image->number !=
+           imageHeap.heap[imageHeap.put_ptr]->time_stamp->number)
         {
-            if(abs(imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter -
-                   imageHeap.heap[imageHeap.put_ptr]->image->counter) >= NOT_SYNC_THRESHOLD)
-            {
-                fprintf(stderr, "%s: sync image and camera trigger time stamp failed\n",__func__);
-                first_sync = 1;
-                ret = -1;
-            }
+/*             fprintf(stderr, "%s: imageHeap.put_ptr = %d\n",__func__,
+                    imageHeap.put_ptr);
+            fprintf(stderr, "%s: imageHeap.heap[imageHeap.put_ptr]->image->counter = %d\n",__func__,
+                    imageHeap.heap[imageHeap.put_ptr]->image->counter);
+            fprintf(stderr, "%s: imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter = %d\n",__func__,
+                    imageHeap.heap[imageHeap.put_ptr]->time_stamp->counter);
+            fprintf(stderr, "%s: imageHeap.heap[imageHeap.put_ptr]->image->number = %d\n",__func__,
+                    imageHeap.heap[imageHeap.put_ptr]->image->number);
+            fprintf(stderr, "%s: imageHeap.heap[imageHeap.put_ptr]->time_stamp->number = %d\n",__func__,
+                    imageHeap.heap[imageHeap.put_ptr]->time_stamp->number); */
+
+            fprintf(stderr, "%s: sync image and camera trigger time stamp failed\n",__func__);
+
+            first_sync = 1;
+            image_counter = 0;
+            sync_1hz_success = 0;
+            ret = -1;
+
+            goto GET_OUT;
         }
         else
         {
-//            fprintf(stderr, "%s: sync image and camera trigger time stamp success\n",__func__);
+            if(sync_1hz_success < 10)
+            {
+                sync_1hz_success ++;
+
+                if(sync_1hz_success == 10)
+                {
+                    ret = xQueueSend((key_t)KEY_SYNC_1HZ_SUCCESS_MSG,&sync_1hz_success,MAX_QUEUE_MSG_NUM);
+                    if(ret == -1)
+                    {
+                        fprintf(stderr, "%s: send sync_1hz_success queue msg failed\n",__func__);
+                    }
+                }
+            }
         }
 
         ret = xQueueSend((key_t)KEY_IMAGE_HANDLER_MSG,imageHeap.heap[imageHeap.put_ptr],imageHeap.depth);
@@ -91,28 +118,19 @@ static int syncImageAndCameraTimeStamp(void)
         {
             fprintf(stderr, "%s: send imageHeap.heap[imageHeap.put_ptr] queue msg failed\n",__func__);
         }
-    }
 
-    imageHeap.put_ptr = (imageHeap.put_ptr + 1) % imageHeap.depth;
+        imageHeap.put_ptr = (imageHeap.put_ptr + 1) % imageHeap.depth;
 
-	imageHeap.cnt += 1;
-	if(imageHeap.cnt >= imageHeap.depth)
-	{
-		imageHeap.cnt = imageHeap.depth;
-
-		imageHeap.get_ptr = imageHeap.put_ptr;
-	}
-
-/*     if(discard_counter < 30)
-    {
-        discard_counter ++;
-
-        if(discard_counter == 30)
+        imageHeap.cnt += 1;
+        if(imageHeap.cnt >= imageHeap.depth)
         {
-            goto CLEAR_HEAP;
+            imageHeap.cnt = imageHeap.depth;
+
+            imageHeap.get_ptr = imageHeap.put_ptr;
         }
     }
- */
+
+GET_OUT:
     pthread_mutex_unlock(&mutexImageHeap);
 
     return ret;

@@ -9,7 +9,7 @@ struct CmdArgs cmdArgs;
 #define LONG_OPT(a) a
 #define ARGOPT "ha:b:c:d:e:f:g:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:J:K:L:M:N:O:P:Q:"
 
-static struct option opts[] = 
+static struct option opts[] =
 {
     { "help",               no_argument,       0, 'h'},
     { "server",             required_argument, 0, 'a'},
@@ -101,7 +101,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
     args->usb_cam_def_conf_file     = "./config/ids_default_config.ini";
     args->usb_cam_user_conf_file    = "./config/ids_user_config.ini";
     args->mipi_cam_user_conf_file   = "./config/cssc132_user_config.ini";
-    args->camera_module             = 0;
+    args->camera_module             = 1;
     args->imu_heap_depth            = 8;
     args->sync_heap_depth           = 8;
     args->image_heap_depth          = 8;
@@ -237,7 +237,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
             break;
 
             case 'j':
-                if(!strcmp(optarg, "1")) 
+                if(!strcmp(optarg, "1"))
                 {
                     args->stopbits1 = SPASTOPBITS_1;
                 }
@@ -375,7 +375,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
             break;
 
             case 'p':
-                if(!strcmp(optarg, "1")) 
+                if(!strcmp(optarg, "1"))
                 {
                     args->stopbits2 = SPASTOPBITS_1;
                 }
@@ -513,7 +513,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
             break;
 
             case 'v':
-                if(!strcmp(optarg, "1")) 
+                if(!strcmp(optarg, "1"))
                 {
                     args->stopbits3 = SPASTOPBITS_1;
                 }
@@ -732,11 +732,11 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 }
             break;
 
-            case 'h': 
+            case 'h':
                 help = 1;
             break;
 
-            case -1: 
+            case -1:
             break;
 
             default:

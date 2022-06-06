@@ -21,6 +21,7 @@ static struct Serial serialSync;
 static struct SyncImuData syncImuData;
 static double frameRate = 30.0f;
 static pthread_t tid_serial_recv = 0;
+static unsigned int CamTimeStampNumber = 0;
 
 static RingBuf ring_fifo;
 static unsigned char rx_fifo[MAX_SYNC_BUF_LEN] = {0};
@@ -379,7 +380,15 @@ static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *c
 
     cam_time_stamp->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
-//    fprintf(stderr, "%s: time_stamp ======================================= %lf\n",__func__,cam_time_stamp->time_stamp_local);
+    cam_time_stamp->number = CamTimeStampNumber ++;
+/*
+    if(image_timestamp == 100)
+    {
+        syncSetCamTrigStop();
+    }
+ */
+    // fprintf(stderr, "%s: time_stamp ======================================= %lf\n",__func__,cam_time_stamp->time_stamp_local);
+    // fprintf(stderr, "%s: cam_time_stamp->number ======================================= %d\n",__func__,cam_time_stamp->number);
 
     return ret;
 }
@@ -425,6 +434,23 @@ static int recvResetMsg(void)
 
     free(reset);
     reset = NULL;
+
+    return ret;
+}
+
+static int recvCameraReadyMsg(void)
+{
+    int ret = 0;
+    char *ready = NULL;
+
+    ret = xQueueReceive((key_t)KEY_CAMERA_READY_MSG,(void **)&ready,0);
+    if(ret == -1)
+    {
+        return -1;
+    }
+
+    free(ready);
+    ready = NULL;
 
     return ret;
 }
@@ -490,15 +516,18 @@ void *thread_sync_module(void *arg)
         switch((unsigned char)syncState)
         {
             case (unsigned char)SET_STOP:
-                ret = syncSetCamTrigStop();
-                if(ret >= 0)
-                {
+                    syncSetCamTrigStop();
+
+                    usleep(1000 * 1500);
+
+                    CamTimeStampNumber = 0;
+
                     syncState = SET_1_HZ;
-                }
             break;
 
             case (unsigned char)SET_1_HZ:
                 ret = syncSetCamTrigStart();
+                //ret = syncSetCamTrigFreq((unsigned short)(5 + 0.5f));
                 if(ret >= 0)
                 {
                     syncState = RUNNING;
@@ -514,6 +543,8 @@ void *thread_sync_module(void *arg)
             break;
 
             case (unsigned char)RUNNING:
+                recvUb482TimeStampAndSendToSyncModule();    //接收UB482时间戳并发送至同步模块
+
                 ret = recvFrameRateMsg();                   //接收帧率消息队列
                 if(ret == 0)
                 {
@@ -524,14 +555,13 @@ void *thread_sync_module(void *arg)
                 {
                     syncState = SET_STOP;
                 }
-                recvUb482TimeStampAndSendToSyncModule();    //接收UB482时间戳并发送至同步模块
             break;
 
             default:
             break;
         }
 
-        usleep(1000 * 100);
+        usleep(1000 * 10);
     }
 
 THREAD_EXIT:

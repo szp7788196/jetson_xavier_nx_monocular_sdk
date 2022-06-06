@@ -2,6 +2,11 @@
 #define __CSSC132_H
 
 #include <sys/ioctl.h>
+#include <linux/videodev2.h>
+
+#define TEGRA_CAMERA_CID_BASE	                (V4L2_CTRL_CLASS_CAMERA | 0x2000)
+#define TEGRA_CAMERA_CID_LOW_LATENCY            (TEGRA_CAMERA_CID_BASE+109)
+#define TEGRA_CAMERA_CID_VI_TIME_OUT_DISABLE    (TEGRA_CAMERA_CID_BASE + 120)
 
 
 #define CSSC132_MAX_SUPPORT_FORMAT_NUM              10
@@ -118,7 +123,7 @@ struct GainDisassemble
 
 struct ExposureState
 {
-	unsigned int expo_time; 
+	unsigned int expo_time;
 	struct GainDisassemble again;
 	struct GainDisassemble dgain;
 };

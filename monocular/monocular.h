@@ -24,6 +24,8 @@
 #define KEY_IMU_ADS16505_HANDLER_MSG	1008
 #define KEY_IMU_MPU9250_HANDLER_MSG		1009
 #define KEY_GNSS_UB482_HANDLER_MSG		1010
+#define KEY_SYNC_1HZ_SUCCESS_MSG		1011
+#define KEY_CAMERA_READY_MSG			1012
 
 #define NTRIP_RTCM_MSG_MAX_LEN          1024
 
@@ -74,6 +76,7 @@ struct ImageBuffer
     char *image;
     unsigned int size;
 	unsigned int counter;
+	unsigned int number;
 };
 
 struct ImageHeapUnit

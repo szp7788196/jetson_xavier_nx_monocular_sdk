@@ -3,25 +3,27 @@
 #include <stdio.h>
 #include <unistd.h>
 #include "ui3240.h"
+#include "cssc132.h"
 #include <signal.h>
 
 int imageHandler(struct ImageHeapUnit *image)
 {
     int ret = 0;
-/*
-    ret = imageBufCompressToJpeg("/home/szp/test_image.jpg",80,(unsigned char *)image->image->image,1280,720,1);
+
+    ret = imageBufCompressToJpeg("/home/szp/test_image.jpg",80,(unsigned char *)image->image->image,1280,720,0);
     if(ret != 0)
     {
         fprintf(stderr, "%s: compress image buf to jpeg picture failed\n",__func__);
     }
- */
+
     printf("\r\n");
     printf("======================= image timestamp start =======================\n");
     printf("* image->time_stamp->time_stamp_local : %lf\n",image->time_stamp->time_stamp_local);
     printf("* image->time_stamp->time_stamp_gnss  : %lf\n",image->time_stamp->time_stamp_gnss);
     printf("* image->time_stamp->counter          : %d\n",image->time_stamp->counter);
     printf("* image->image->counter               : %d\n",image->image->counter);
-//    printf("* image->put_ptr                      : %d\n",image->put_ptr);
+    printf("* image->image->number                : %d\n",image->image->number);
+    printf("* image->time_stamp->number           : %d\n",image->time_stamp->number);
     printf("======================== image timestamp end ========================\n");
 
     return ret;
@@ -113,8 +115,6 @@ int main(int argc, char **argv)
     monocular_sdk_init(argc, argv);
 
     monocular_sdk_register_handler(imageHandler,NULL,NULL,NULL);
-
-    signal(SIGINT, pthread_ui3240_exit);
 
 /*     ret = queryEC20_IMEI(imei);
     if(ret == 0)
