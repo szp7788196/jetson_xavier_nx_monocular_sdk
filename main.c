@@ -9,12 +9,32 @@
 int imageHandler(struct ImageHeapUnit *image)
 {
     int ret = 0;
+    struct timeval tv[2];
 
-    ret = imageBufCompressToJpeg("/home/szp/test_image.jpg",80,(unsigned char *)image->image->image,1280,720,0);
+    gettimeofday(&tv[0],NULL);
+
+    ret = imageBufCompressToPng("/home/szp/test_image.png",image->image,0);
+    if(ret != 0)
+    {
+        fprintf(stderr, "%s: compress image buf to png picture failed\n",__func__);
+    }
+
+/*     ret = imageBufCompressToJpeg("/home/szp/test_image.jpg",80,image->image,1,1);
     if(ret != 0)
     {
         fprintf(stderr, "%s: compress image buf to jpeg picture failed\n",__func__);
-    }
+    } */
+
+
+/*     ret = imageBufCompressToBmp("/home/szp/test_image.bmp",image->image,0);
+    if(ret != 0)
+    {
+        fprintf(stderr, "%s: compress image buf to bmp picture failed\n",__func__);
+    } */
+
+    gettimeofday(&tv[1],NULL);
+
+    fprintf(stderr, "save png: %ldms\n",(tv[1].tv_sec * 1000 + tv[1].tv_usec / 1000) - (tv[0].tv_sec * 1000 + tv[0].tv_usec / 1000));
 
     printf("\r\n");
     printf("======================= image timestamp start =======================\n");

@@ -2021,6 +2021,8 @@ static int captureImage(struct Cssc132Config config,struct ImageHeap *image_heap
     pthread_mutex_lock(&mutexImageHeap);
     memcpy(image_heap->heap[imageHeap.put_ptr]->image->image,config.frame_buf[buf.index].start,config.frame_buf[buf.index].length);
 
+    image_heap->heap[imageHeap.put_ptr]->image->width = config.current_format.width;
+    image_heap->heap[imageHeap.put_ptr]->image->height = config.current_format.height;
     image_heap->heap[imageHeap.put_ptr]->image->size = config.frame_buf[buf.index].length;
     image_heap->heap[imageHeap.put_ptr]->image->number = (*image_num) ++;
 

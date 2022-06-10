@@ -28,6 +28,7 @@ add_library(monocular SHARED
 target_link_libraries(monocular
     m
     jpeg
+    png
     pthread
     ueye_api
 )

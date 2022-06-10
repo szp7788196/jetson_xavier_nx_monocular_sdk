@@ -2806,6 +2806,8 @@ static int captureImage(struct ImageHeap *image_heap,unsigned int *image_num,uns
             return IS_NO_SUCCESS;
         }
 
+        image_heap->heap[imageHeap.put_ptr]->image->width = (unsigned short)cameraConfig.image_width;
+        image_heap->heap[imageHeap.put_ptr]->image->height = (unsigned short)cameraConfig.image_height;
         image_heap->heap[imageHeap.put_ptr]->image->size = cameraConfig.frame_buf_size;
         image_heap->heap[imageHeap.put_ptr]->image->number = (*image_num) ++;
         pthread_mutex_unlock(&mutexImageHeap);
@@ -2862,6 +2864,8 @@ static int captureImage(struct ImageHeap *image_heap,unsigned int *image_num,uns
         pthread_mutex_lock(&mutexImageHeap);
         memcpy(image_heap->heap[imageHeap.put_ptr]->image->image, memory, cameraConfig.frame_buf_size);
 
+        image_heap->heap[imageHeap.put_ptr]->image->width = (unsigned short)cameraConfig.image_width;
+        image_heap->heap[imageHeap.put_ptr]->image->height = (unsigned short)cameraConfig.image_height;
         image_heap->heap[imageHeap.put_ptr]->image->size = cameraConfig.frame_buf_size;
         image_heap->heap[imageHeap.put_ptr]->image->number = (*image_num) ++;
         pthread_mutex_unlock(&mutexImageHeap);

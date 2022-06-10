@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <jpeglib.h>
+#include <png.h>
 #include "cmd_parse.h"
 #include "cssc132.h"
 #include "led.h"
@@ -1212,7 +1213,7 @@ int gnssUb482HeapGet(struct Ub482GnssData *data)
 * outBuf -- RGB565 data
 * image_width,image_height -- image width and height
 */
-static int convert_UYVY_To_RGB(unsigned char *in_buf,
+int convert_UYVY_To_RGB(unsigned char *in_buf,
                         unsigned char *out_buf,
 						int image_width,
 						int image_height)
@@ -1286,20 +1287,77 @@ static int convert_UYVY_To_RGB(unsigned char *in_buf,
 	return 0;
 }
 
+int convert_UYVY_To_GRAY(unsigned char *in_buf,
+                        unsigned char *out_buf,
+						int image_width,
+						int image_height)
+{
+    int rows ,cols;	                        /* 行列标志 */
+	int y, u, v, r, g, b;	                /* yuv rgb 相关分量 */
+	unsigned char *yuv_data, *rgb_data;	    /* YUV和RGB数据指针 */
+	int y_pos, u_pos, v_pos;	            /* Y U V在数据缓存中的偏移 */
+	unsigned int i = 0;
+
+	yuv_data = in_buf;
+	rgb_data = out_buf;
+
+#if 0
+	/*  YUYV */
+	y_pos = 0;
+	u_pos = y_pos + 1;
+	v_pos = u_pos + 2;
+
+	/* YVYU */
+	y_pos = 0;
+	v_pos = y_pos + 1;
+	u_pos = v_pos + 2;
+#endif
+
+#if 1   /* UYVY */
+	y_pos = 1;
+	u_pos = y_pos - 1;
+	v_pos = y_pos + 1;
+#endif
+
+	/* 每个像素两个字节 */
+	for(rows = 0; rows < image_height; rows ++)
+	{
+		for(cols = 0; cols < image_width; cols ++)
+		{
+			/* 矩阵推到，百度 */
+			y = yuv_data[y_pos];
+
+            *(rgb_data ++) = (unsigned char)y;
+
+			/* 两个字节数据中包含一个Y */
+			y_pos += 2;
+			//y_pos++;
+			i ++;
+			/* 每两个Y更新一次UV */
+			if(!(i & 0x01))
+			{
+				u_pos = y_pos - 1;
+				v_pos = y_pos + 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /*
 * 将图片压缩为jpeg格式
 * file_name -- 图片存储路径和文件名称
 * quality -- 压缩质量 一般为80
 * image_buffer -- RGB或灰度数据
-* image_width,image_height -- image width and height
 * format -- image_buffer的格式,0:RGB格式;1:灰度格式
+* camera_type -- 0:ids灰度相机;1:cssc132
 */
-int imageBufCompressToJpeg(char * file_name,
+int imageBufCompressToJpeg(char *file_name,
                            int quality,
-                           unsigned char *image_buffer,
-                           unsigned int image_width,
-                           unsigned int image_height,
-						   unsigned char format)
+                           struct ImageBuffer *image,
+                           unsigned char format,
+                           unsigned char camera_type)
 {
     int ret = 0;
     struct jpeg_compress_struct com_cinfo;
@@ -1311,18 +1369,32 @@ int imageBufCompressToJpeg(char * file_name,
 
 	if(format == 0)
 	{
-		rgb_buf = (unsigned char *)malloc(image_width * image_height * 3);
+		rgb_buf = (unsigned char *)malloc(image->width * image->height * 3);
 		if(rgb_buf == NULL)
 		{
 			fprintf(stderr, "%s: malloc rgb_buf failed\n",__func__);
 			return -1;
 		}
 
-		convert_UYVY_To_RGB(image_buffer,rgb_buf,image_width,image_height);
+		convert_UYVY_To_RGB(image->image,rgb_buf,image->width,image->height);
 	}
 	else
 	{
-		rgb_buf = image_buffer;
+        if(camera_type == 1)
+        {
+            rgb_buf = (unsigned char *)malloc(image->width * image->height * 1);
+            if(rgb_buf == NULL)
+            {
+                fprintf(stderr, "%s: malloc rgb_buf failed\n",__func__);
+                return -1;
+            }
+
+		    convert_UYVY_To_GRAY(image->image,rgb_buf,image->width,image->height);
+        }
+        else if(camera_type == 0)
+        {
+            rgb_buf = image->image;
+        }
 	}
 
     //Step 1: 申请并初始化jpeg压缩对象，同时要指定错误处理器
@@ -1342,8 +1414,8 @@ int imageBufCompressToJpeg(char * file_name,
     jpeg_stdio_dest(&com_cinfo, outfile);
 
     //Step 3: 设置压缩参数
-    com_cinfo.image_width = image_width;
-    com_cinfo.image_height = image_height;
+    com_cinfo.image_width = image->width;
+    com_cinfo.image_height = image->height;
 	if(format == 0)
 	{
 		com_cinfo.input_components = 3;             //3表示彩色位图，如果是灰度图则为1
@@ -1364,11 +1436,11 @@ int imageBufCompressToJpeg(char * file_name,
     //Step 5: while (scan lines remain to be written)
 	if(format == 0)
 	{
-		row_stride = image_width * 3;                 //每一行的字节数,如果不是索引图,此处需要乘以3
+		row_stride = image->width * 3;                 //每一行的字节数,如果不是索引图,此处需要乘以3
 	}
     else
 	{
-		row_stride = image_width * 1;                 //每一行的字节数,如果不是索引图,此处需要乘以3
+		row_stride = image->width * 1;                 //每一行的字节数,如果不是索引图,此处需要乘以3
 	}
 
     while(com_cinfo.next_scanline < com_cinfo.image_height)
@@ -1391,6 +1463,186 @@ int imageBufCompressToJpeg(char * file_name,
     jpeg_destroy_compress(&com_cinfo);
 
     return ret;
+}
+
+/*
+* 将图片压缩为jpeg格式
+* file_name -- 图片存储路径和文件名称
+* image_buffer -- RGB或灰度数据
+* format -- image_buffer的格式,0:RGB格式;1:灰度格式
+*/
+int imageBufCompressToPng(char *file_name,
+						   struct ImageBuffer *image,
+						   unsigned char format)
+{
+	int ret = 0;
+	int i = 0;
+	png_structp png_ptr = NULL;
+	png_infop info_ptr = NULL;
+	FILE *pngfp = NULL;
+	unsigned char *rgb_buf = NULL;
+	png_bytep png_buffer = NULL;
+	png_byte bit_depth = 16;
+	png_byte color_type = PNG_COLOR_TYPE_RGB;
+	unsigned short row_stride = 0;
+
+	png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,NULL,NULL,NULL);
+	if(png_ptr == NULL)
+    {
+        fprintf(stderr, "%s: could not allocate PNG write struct\n",__func__);
+		ret = -1;
+        goto error0;
+    }
+
+	info_ptr = png_create_info_struct(png_ptr);
+	if(info_ptr == NULL)
+    {
+		fprintf(stderr, "%s: could not allocate PNG info struct\n",__func__);
+		ret = -1;
+        goto error0;
+    }
+
+	if(setjmp(png_jmpbuf(png_ptr)))
+    {
+		fprintf(stderr, "%s: error creating PNG\n",__func__);
+		ret = -1;
+		goto error1;
+    }
+
+	pngfp = fopen(file_name, "wb");
+	if(pngfp == NULL)
+    {
+		fprintf(stderr, "%s: Unable to create %s\n",__func__,file_name);
+		ret = -1;
+        goto error1;
+    }
+
+	png_init_io(png_ptr, pngfp);
+
+	if(format != 0)
+	{
+		bit_depth = 8;
+		color_type = PNG_COLOR_TYPE_GRAY;
+		row_stride = image->width * 1;                 //每一行的字节数,如果不是灰度图,此处需要乘以3
+
+		rgb_buf = (unsigned char *)malloc(image->width * image->height * 3);
+		if(rgb_buf == NULL)
+		{
+			fprintf(stderr, "%s: malloc rgb_buf failed\n",__func__);
+			ret = -1;
+			goto error2;
+		}
+
+		convert_UYVY_To_GRAY(image->image,rgb_buf,image->width,image->height);
+	}
+	else
+	{
+		row_stride = image->width * 3;                 //每一行的字节数,如果不是灰度图,此处需要乘以3
+
+		rgb_buf = (unsigned char *)malloc(image->width * image->height * 3);
+		if(rgb_buf == NULL)
+		{
+			fprintf(stderr, "%s: malloc rgb_buf failed\n",__func__);
+			ret = -1;
+			goto error2;
+		}
+
+		convert_UYVY_To_RGB(image->image,rgb_buf,image->width,image->height);
+	}
+
+	png_set_IHDR(png_ptr,
+                 info_ptr,
+                 image->width,
+                 image->height,
+                 8,
+                 color_type,
+                 PNG_INTERLACE_NONE,
+                 PNG_COMPRESSION_TYPE_DEFAULT,
+                 PNG_FILTER_TYPE_DEFAULT);
+
+	png_write_info(png_ptr, info_ptr);
+
+	for(i = 0; i < image->height; i ++)
+	{
+		png_buffer = rgb_buf + (row_stride * i);
+		png_write_row(png_ptr, png_buffer);
+	}
+
+	png_write_end(png_ptr, NULL);
+
+error3:
+	free(rgb_buf);
+	rgb_buf = NULL;
+error2:
+	fclose(pngfp);
+error1:
+	png_destroy_write_struct(&png_ptr, &info_ptr);
+error0:
+	return ret;
+}
+
+/*
+* 将图片压缩为jpeg格式
+* file_name -- 图片存储路径和文件名称
+* image_buffer -- RGB或灰度数据
+* format -- image_buffer的格式,0:RGB格式;1:灰度格式
+*/
+int imageBufCompressToBmp(char *file_name,struct ImageBuffer *image,unsigned char format)
+{
+    FILE *fp;
+    struct BITMAPFILEHEADER bmfh;   //bmp文件头
+	struct BITMAPINFOHEADER bmih;   //bmp信息头
+    unsigned char *rgb_buf = NULL;
+    unsigned int image_size = 0;
+
+    struct timeval tv[2];
+
+    fp = fopen(file_name,"wb" );
+    if(fp == NULL)
+    {
+        fprintf(stderr, "%s: can not open file:%s\n",__func__,file_name);
+        return -1;
+    }
+
+    image_size = image->height * image->width * 3;
+
+    //设置BMP文件头
+	bmfh.bfType = 0x4D42;//'BM'
+	bmfh.bfSize = sizeof(struct BITMAPFILEHEADER) + sizeof(struct BITMAPINFOHEADER) + image_size;
+	bmfh.bfReserved1 = 0;
+	bmfh.bfReserved2 = 0;
+	bmfh.bfOffBits = sizeof(struct BITMAPFILEHEADER) + sizeof(struct BITMAPINFOHEADER);
+
+    //设置BMP信息头
+	bmih.biSize = 0U | sizeof(struct BITMAPINFOHEADER);
+	bmih.biWidth = image->width;
+	bmih.biHeight = -image->height;
+	bmih.biPlanes = 1;
+	bmih.biBitCount = 24;
+	bmih.biCompression = 0;
+	bmih.biSizeImage = 0U | image_size;
+	bmih.biXPelsPerMeter = 0;
+	bmih.biYPelsPerMeter = 0;
+	bmih.biClrUsed = 0;
+	bmih.biClrImportant = 0;
+
+    rgb_buf = (unsigned char *)malloc(image->width * image->height * 3);
+    if(rgb_buf == NULL)
+    {
+        fprintf(stderr, "%s: malloc rgb_buf failed\n",__func__);
+        return -1;
+    }
+
+    convert_UYVY_To_RGB(image->image,rgb_buf,image->width,image->height);
+
+    fwrite(&bmfh, 8, 1, fp );//由于linux上4字节对齐，而信息头大小为54字节，第一部分14字节，第二部分40字节，所以会将第一部分补齐为16自己，直接用sizeof，打开图片时就会遇到premature end-of-file encountered错误
+    fwrite(&bmfh.bfReserved2, sizeof(bmfh.bfReserved2), 1, fp);
+    fwrite(&bmfh.bfOffBits, sizeof(bmfh.bfOffBits), 1, fp);
+    fwrite(&bmih, sizeof(struct BITMAPINFOHEADER),1,fp);
+    fwrite(rgb_buf,image_size,1,fp);
+    fclose(fp);
+
+    return 0;
 }
 
 static void syncAndMutexCreate(void)

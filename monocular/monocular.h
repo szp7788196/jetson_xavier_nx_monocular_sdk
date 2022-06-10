@@ -74,6 +74,8 @@ struct NormalMsg
 struct ImageBuffer
 {
     char *image;
+	unsigned short width;
+	unsigned short height;
     unsigned int size;
 	unsigned int counter;
 	unsigned int number;
@@ -133,6 +135,38 @@ struct DataHandler
 	ImuMpu9250Handler imu_mpu9250_handler;
 	GnssUb482Handler gnss_ub482_handler;
 };
+
+struct BITMAPFILEHEADER
+{
+	unsigned short bfType;          //位图类别，不同操作系统不同，windows下为’BM’
+	unsigned int bfSize;            //图像文件的大小（包括头+数据）
+	unsigned short bfReserved1;     //保留，为0
+	unsigned short bfReserved2;     //保留，为0
+	unsigned int bfOffBits;         //位图数据的地址
+};
+
+struct BITMAPINFOHEADER
+{
+	unsigned int biSize;            //本结构大小，根据操作系统不同而设置，windows上为40字节
+	unsigned int biWidth;           //图像宽度
+	unsigned int biHeight;          //图像高度
+	unsigned short biPlanes;        //必须为1
+	unsigned short biBitCount;      //BMP图像的色深，即一个像素用多少位表示
+	unsigned int biCompression;     //压缩方法，0表示不压缩
+	unsigned int biSizeImage;       //BMP图像数据大小，必须是4的倍数
+	unsigned int biXPelsPerMeter;   //水平分辨率，单位像素/m
+	unsigned int biYPelsPerMeter;   //垂直分辨率，单位像素/m
+	unsigned int biClrUsed;         //BMP图像使用的颜色，0表示使用全部颜色，对于256色位图来说，此值为256
+	unsigned int biClrImportant;    //重要的颜色值，此值为0时，表示所有颜色都重要，对于使用调色板的BMP图像来说，当显卡不能够显示所有颜色时，此值将辅助驱动程序显示颜色。
+};
+
+typedef struct tagRGBQUAD
+{
+	unsigned char rgbBlue;
+	unsigned char rgbGreen;
+	unsigned char rgbRed;
+	unsigned char rgbReserved;
+} RGBQUAD;
 
 
 static const unsigned int crc32tab[] =
@@ -306,12 +340,19 @@ int imuMpu9250HeapPut(struct Mpu9250SampleData *data);
 int imuMpu9250HeapGet(struct Mpu9250SampleData *data);
 int gnssUb482HeapPut(struct Ub482GnssData *data);
 int gnssUb482HeapGet(struct Ub482GnssData *data);
-int imageBufCompressToJpeg(char * file_name,
+int convert_UYVY_To_RGB(unsigned char *in_buf,
+                        unsigned char *out_buf,
+						int image_width,
+						int image_height);
+int imageBufCompressToJpeg(char *file_name,
                            int quality,
-                           unsigned char *image_buffer,
-                           unsigned int image_width,
-                           unsigned int image_height,
+                           struct ImageBuffer *image,
+                           unsigned char format,
+                           unsigned char camera_type);
+int imageBufCompressToPng(char *file_name,
+						   struct ImageBuffer *image,
 						   unsigned char format);
+int imageBufCompressToBmp(char *file_name,struct ImageBuffer *image,unsigned char format);
 int monocular_sdk_init(int argc, char **argv);
 void monocular_sdk_register_handler(ImageHandler image_handler,
                                     ImuAds16505Handler imu_ads16505_handler,
