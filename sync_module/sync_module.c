@@ -323,38 +323,38 @@ static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data)
 
     imu_data->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
-    imu_data->gx = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 2))) << 24) & 0xFF000000) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 3))) << 16) & 0x00FF0000) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 0))) <<  8) & 0x0000FF00) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 1))) <<  0) & 0x000000FF);
+    imu_data->gx = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 4))) << 24) & 0xFF000000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 5))) << 16) & 0x00FF0000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 2))) <<  8) & 0x0000FF00) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 3))) <<  0) & 0x000000FF);
 
-    imu_data->gy = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 6))) << 24) & 0xFF000000) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 7))) << 16) & 0x00FF0000) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 4))) <<  8) & 0x0000FF00) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 5))) <<  0) & 0x000000FF);
+    imu_data->gy = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 8))) << 24) & 0xFF000000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 9))) << 16) & 0x00FF0000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 6))) <<  8) & 0x0000FF00) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 7))) <<  0) & 0x000000FF);
 
-    imu_data->gz = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 10))) << 24) & 0xFF000000) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 11))) << 16) & 0x00FF0000) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD +  8))) <<  8) & 0x0000FF00) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD +  9))) <<  0) & 0x000000FF);
+    imu_data->gz = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 12))) << 24) & 0xFF000000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 13))) << 16) & 0x00FF0000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 10))) <<  8) & 0x0000FF00) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 11))) <<  0) & 0x000000FF);
 
-    imu_data->ax = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 14))) << 24) & 0xFF000000) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 15))) << 16) & 0x00FF0000) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 12))) <<  8) & 0x0000FF00) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 13))) <<  0) & 0x000000FF);
+    imu_data->ax = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 16))) << 24) & 0xFF000000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 17))) << 16) & 0x00FF0000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 14))) <<  8) & 0x0000FF00) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 15))) <<  0) & 0x000000FF);
 
-    imu_data->ay = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 18))) << 24) & 0xFF000000) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 19))) << 16) & 0x00FF0000) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 16))) <<  8) & 0x0000FF00) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 17))) <<  0) & 0x000000FF);
+    imu_data->ay = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 20))) << 24) & 0xFF000000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 21))) << 16) & 0x00FF0000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 18))) <<  8) & 0x0000FF00) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 19))) <<  0) & 0x000000FF);
 
-    imu_data->az = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 22))) << 24) & 0xFF000000) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 23))) << 16) & 0x00FF0000) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 20))) <<  8) & 0x0000FF00) +
-                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 21))) <<  0) & 0x000000FF);
+    imu_data->az = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 24))) << 24) & 0xFF000000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 25))) << 16) & 0x00FF0000) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 22))) <<  8) & 0x0000FF00) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 23))) <<  0) & 0x000000FF);
 
-    imu_data->temperature = ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 24))) << 8) & 0xFF00) +
-                            ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 25))) << 0) & 0x00FF);
+    imu_data->temperature = ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 26))) << 8) & 0xFF00) +
+                            ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 27))) << 0) & 0x00FF);
 
     return ret;
 }
