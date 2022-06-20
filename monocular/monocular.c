@@ -13,17 +13,25 @@
 #include "sync.h"
 #include "handler.h"
 
-
-struct ImageHeap imageHeap = {NULL,0,0,0};
-struct ImuAdis16505Heap imuAdis16505Heap = {NULL,0,0,0};
-struct ImuMpu9250Heap imuMpu9250Heap = {NULL,0,0,0};
-struct GnssUb482Heap gnssUb482Heap = {NULL,0,0,0};
+struct ImageBuffer imageBuffer = {NULL,0,0,0,0};
+struct ImageUnit imageUnit = {NULL,NULL};
+struct ImageHeap imageHeap = {NULL,0,0,0,0};
+struct ImageUnitHeap imageUnitHeap = {NULL,0,0,0,0};
+struct ImuAdis16505Heap imuAdis16505Heap = {NULL,0,0,0,0};
+struct ImuMpu9250Heap imuMpu9250Heap = {NULL,0,0,0,0};
+struct GnssUb482Heap gnssUb482Heap = {NULL,0,0,0,0};
+struct SyncCamTimeStampHeap syncCamTimeStampHeap = {NULL,0,0,0,0};
 
 pthread_mutex_t mutexImageHeap;
+pthread_mutex_t mutexImageUnitHeap;
 pthread_mutex_t mutexImuAdis16505Heap;
 pthread_mutex_t mutexImuMpu9250Heap;
 pthread_mutex_t mutexGnssUb482Heap;
-pthread_cond_t condImageHeap;
+pthread_mutex_t mutexSyncCamTimeStampHeap;
+sem_t sem_t_ImageHeap;
+sem_t sem_t_ImageUnitHeap;
+sem_t sem_t_SyncCamTimeStampHeap;
+
 
 struct DataHandler dataHandler = {NULL,NULL,NULL,NULL};
 
@@ -430,6 +438,27 @@ int AT_SendCmd(struct Serial *sn,
 	return 0;
 }
 
+long long tm_to_ns(struct timespec tm)
+{
+	long long ret = tm.tv_sec;
+
+	ret = ret * 1000000000 + tm.tv_nsec;
+
+	return ret;
+}
+
+struct timespec ns_to_tm(long long ns)
+{
+	struct timespec tm;
+	long long tmp;
+
+	tmp = ns / 1000000000;
+	tm.tv_sec = tmp;
+
+	tm.tv_nsec = ns - (tmp * 1000000000);
+	return tm;
+}
+
 int queryEC20_IMEI(char *imei)
 {
 	int ret = 0;
@@ -686,20 +715,8 @@ void freeImageHeap(void)
             {
                 if(imageHeap.heap[i]->image != NULL)
                 {
-                    if(imageHeap.heap[i]->image->image != NULL)
-                    {
-                        free(imageHeap.heap[i]->image->image);
-                        imageHeap.heap[i]->image->image = NULL;
-                    }
-
                     free(imageHeap.heap[i]->image);
                     imageHeap.heap[i]->image = NULL;
-                }
-
-				if(imageHeap.heap[i]->time_stamp != NULL)
-                {
-                    free(imageHeap.heap[i]->time_stamp);
-                    imageHeap.heap[i]->time_stamp = NULL;
                 }
 
                 free(imageHeap.heap[i]);
@@ -733,7 +750,7 @@ int allocateImageHeap(unsigned short depth,unsigned int image_size)
 
 	imageHeap.depth = depth;
 
-	imageHeap.heap = calloc(imageHeap.depth, sizeof(struct ImageHeapUnit));
+	imageHeap.heap = calloc(imageHeap.depth, sizeof(struct ImageBuffer));
 
 	if(imageHeap.heap == NULL)
 	{
@@ -744,50 +761,144 @@ int allocateImageHeap(unsigned short depth,unsigned int image_size)
 	for(i = 0; i < imageHeap.depth; i ++)
 	{
 		imageHeap.heap[i] = NULL;
-		imageHeap.heap[i] = (struct ImageHeapUnit *)malloc(sizeof(struct ImageHeapUnit));
+		imageHeap.heap[i] = (struct ImageBuffer *)malloc(sizeof(struct ImageBuffer));
 		if(imageHeap.heap[i] == NULL)
 		{
 			fprintf(stderr, "%s: malloc imageHeap.heap[%d] failed\n",__func__,i);
 			return -1;
 		}
 
-		imageHeap.heap[i]->image = NULL;
-		imageHeap.heap[i]->image = (struct ImageBuffer *)malloc(sizeof(struct ImageBuffer));
+		memset(imageHeap.heap[i],0,sizeof(struct ImageBuffer));
+
+		imageHeap.heap[i]->size = image_size;
+
+		imageHeap.heap[i]->image = (char *)malloc(image_size * sizeof(char));
 		if(imageHeap.heap[i]->image == NULL)
 		{
 			fprintf(stderr, "%s: malloc imageHeap.heap[%d]->image failed\n",__func__,i);
 			return -1;
 		}
 
-		memset(imageHeap.heap[i]->image,0,sizeof(struct ImageBuffer));
+		memset(imageHeap.heap[i]->image,0,image_size);
+	}
 
-		imageHeap.heap[i]->image->size = image_size;
+	return 0;
+}
 
-		imageHeap.heap[i]->image->image = (char *)malloc(image_size * sizeof(char));
-		if(imageHeap.heap[i]->image->image == NULL)
+void freeImageUnitHeap(void)
+{
+	int i = 0;
+
+	if(imageUnitHeap.heap != NULL && imageUnitHeap.depth != 0)
+    {
+        for(i = 0; i < imageUnitHeap.depth; i ++)
+        {
+            if(imageUnitHeap.heap[i] != NULL)
+            {
+                if(imageUnitHeap.heap[i]->image != NULL)
+                {
+                    if(imageUnitHeap.heap[i]->image->image != NULL)
+                    {
+                        free(imageUnitHeap.heap[i]->image->image);
+                        imageUnitHeap.heap[i]->image->image = NULL;
+                    }
+
+                    free(imageUnitHeap.heap[i]->image);
+                    imageUnitHeap.heap[i]->image = NULL;
+                }
+
+				if(imageUnitHeap.heap[i]->time_stamp != NULL)
+                {
+                    free(imageUnitHeap.heap[i]->time_stamp);
+                    imageUnitHeap.heap[i]->time_stamp = NULL;
+                }
+
+                free(imageUnitHeap.heap[i]);
+                imageUnitHeap.heap[i] = NULL;
+            }
+        }
+
+        imageUnitHeap.heap = NULL;
+		imageUnitHeap.cnt = 0;
+		imageUnitHeap.depth = 0;
+        imageUnitHeap.put_ptr = 0;
+        imageUnitHeap.get_ptr = 0;
+    }
+}
+
+int allocateImageUnitHeap(unsigned short depth,unsigned int image_size)
+{
+	int i = 0;
+
+	if(imageUnitHeap.heap != NULL)
+	{
+		fprintf(stderr, "%s: imageUnitHeap.heap does not null\n",__func__);
+		return -1;
+	}
+
+	if(depth & (depth - 1))		//判断depth是否为2的N次幂
+	{
+		fprintf(stderr, "%s: depth dose not N-th power of 2\n",__func__);
+		return -1;
+	}
+
+	imageUnitHeap.depth = depth;
+
+	imageUnitHeap.heap = calloc(imageUnitHeap.depth, sizeof(struct ImageUnit));
+
+	if(imageUnitHeap.heap == NULL)
+	{
+		fprintf(stderr, "%s: calloc imageUnitHeap.heap failed\n",__func__);
+		return -1;
+	}
+
+	for(i = 0; i < imageUnitHeap.depth; i ++)
+	{
+		imageUnitHeap.heap[i] = NULL;
+		imageUnitHeap.heap[i] = (struct ImageUnit *)malloc(sizeof(struct ImageUnit));
+		if(imageUnitHeap.heap[i] == NULL)
 		{
-			fprintf(stderr, "%s: malloc imageHeap.heap[%d]->image->image failed\n",__func__,i);
+			fprintf(stderr, "%s: malloc imageUnitHeap.heap[%d] failed\n",__func__,i);
 			return -1;
 		}
 
-		memset(imageHeap.heap[i]->image->image,0,image_size);
-
-		imageHeap.heap[i]->time_stamp = NULL;
-		if(imageHeap.heap[i]->time_stamp != NULL)
+		imageUnitHeap.heap[i]->image = NULL;
+		imageUnitHeap.heap[i]->image = (struct ImageBuffer *)malloc(sizeof(struct ImageBuffer));
+		if(imageUnitHeap.heap[i]->image == NULL)
 		{
-			fprintf(stderr, "%s: imageHeap.heap[%d]->time_stamp does not null\n",__func__,i);
+			fprintf(stderr, "%s: malloc imageUnitHeap.heap[%d]->image failed\n",__func__,i);
 			return -1;
 		}
 
-		imageHeap.heap[i]->time_stamp = NULL;
-		imageHeap.heap[i]->time_stamp = (struct SyncCamTimeStamp *)malloc(sizeof(struct SyncCamTimeStamp));
-		if(imageHeap.heap[i]->time_stamp == NULL)
+		memset(imageUnitHeap.heap[i]->image,0,sizeof(struct ImageBuffer));
+
+		imageUnitHeap.heap[i]->image->size = image_size;
+
+		imageUnitHeap.heap[i]->image->image = (char *)malloc(image_size * sizeof(char));
+		if(imageUnitHeap.heap[i]->image->image == NULL)
 		{
-			fprintf(stderr, "%s: malloc imageHeap.heap[%d]->time_stamp failed\n",__func__,i);
+			fprintf(stderr, "%s: malloc imageUnitHeap.heap[%d]->image->image failed\n",__func__,i);
 			return -1;
 		}
 
-		memset(imageHeap.heap[i]->time_stamp,0,sizeof(struct SyncCamTimeStamp));
+		memset(imageUnitHeap.heap[i]->image->image,0,image_size);
+
+		imageUnitHeap.heap[i]->time_stamp = NULL;
+		if(imageUnitHeap.heap[i]->time_stamp != NULL)
+		{
+			fprintf(stderr, "%s: imageUnitHeap.heap[%d]->time_stamp does not null\n",__func__,i);
+			return -1;
+		}
+
+		imageUnitHeap.heap[i]->time_stamp = NULL;
+		imageUnitHeap.heap[i]->time_stamp = (struct SyncCamTimeStamp *)malloc(sizeof(struct SyncCamTimeStamp));
+		if(imageUnitHeap.heap[i]->time_stamp == NULL)
+		{
+			fprintf(stderr, "%s: malloc imageUnitHeap.heap[%d]->time_stamp failed\n",__func__,i);
+			return -1;
+		}
+
+		memset(imageUnitHeap.heap[i]->time_stamp,0,sizeof(struct SyncCamTimeStamp));
 	}
 
 	return 0;
@@ -982,7 +1093,97 @@ int allocateGnssUb482Heap(unsigned short depth)
 	return 0;
 }
 
-int imageHeapGet(struct ImageHeapUnit *data)
+void freeSyncCamTimeStampHeap(void)
+{
+	int i = 0;
+
+	if(syncCamTimeStampHeap.heap != NULL && syncCamTimeStampHeap.depth != 0)
+	{
+		for(i = 0; i < syncCamTimeStampHeap.depth; i ++)
+		{
+			if(syncCamTimeStampHeap.heap[i] != NULL)
+			{
+				free(syncCamTimeStampHeap.heap[i]);
+				syncCamTimeStampHeap.heap[i] = NULL;
+			}
+		}
+
+		syncCamTimeStampHeap.heap = NULL;
+		syncCamTimeStampHeap.cnt = 0;
+		syncCamTimeStampHeap.depth = 0;
+        syncCamTimeStampHeap.put_ptr = 0;
+        syncCamTimeStampHeap.get_ptr = 0;
+	}
+}
+
+int allocateSyncCamTimeStampHeap(unsigned short depth)
+{
+	int i = 0;
+
+	if(syncCamTimeStampHeap.heap != NULL)
+	{
+		fprintf(stderr, "%s: syncCamTimeStampHeap.heap does not null\n",__func__);
+		return -1;
+	}
+
+	if(depth & (depth - 1))		//判断depth是否为2的N次幂
+	{
+		fprintf(stderr, "%s: depth dose not N-th power of 2\n",__func__);
+		return -1;
+	}
+
+	syncCamTimeStampHeap.depth = depth;
+
+	syncCamTimeStampHeap.heap = calloc(syncCamTimeStampHeap.depth, sizeof(struct SyncCamTimeStampHeap));
+
+	if(syncCamTimeStampHeap.heap == NULL)
+	{
+		fprintf(stderr, "%s: calloc syncCamTimeStampHeap.heap failed\n",__func__);
+		return -1;
+	}
+
+	for(i = 0; i < depth; i ++)
+	{
+		syncCamTimeStampHeap.heap[i] = NULL;
+		syncCamTimeStampHeap.heap[i] = (struct SyncCamTimeStamp *)malloc(sizeof(struct SyncCamTimeStamp));
+		if(syncCamTimeStampHeap.heap[i] == NULL)
+		{
+			fprintf(stderr, "%s: malloc syncCamTimeStampHeap.heap[%d] failed\n",__func__,i);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+int imageHeapPut(struct ImageBuffer *data)
+{
+	if(data == NULL)
+	{
+		fprintf(stderr, "%s: data is null\n",__func__);
+		return -1;
+	}
+
+	pthread_mutex_lock(&mutexImageHeap);
+
+	memcpy(imageHeap.heap[imageHeap.put_ptr],data,sizeof(struct ImageBuffer));
+
+	imageHeap.put_ptr = (imageHeap.put_ptr + 1) % imageHeap.depth;
+
+	imageHeap.cnt += 1;
+	if(imageHeap.cnt >= imageHeap.depth)
+	{
+		imageHeap.cnt = imageHeap.depth;
+
+		imageHeap.get_ptr = imageHeap.put_ptr;
+	}
+
+	pthread_mutex_unlock(&mutexImageHeap);
+
+	return 0;
+}
+
+int imageHeapGet(struct ImageBuffer *data)
 {
 	if(data == NULL)
 	{
@@ -999,7 +1200,13 @@ int imageHeapGet(struct ImageHeapUnit *data)
 
 	if(imageHeap.cnt > 0)
 	{
-		memcpy(data,imageHeap.heap[imageHeap.get_ptr],sizeof(struct ImageHeapUnit));
+		// memcpy(data,imageHeap.heap[imageHeap.get_ptr],sizeof(struct ImageBuffer));
+
+		memcpy(data->image,imageHeap.heap[imageHeap.get_ptr]->image,imageHeap.heap[imageHeap.get_ptr]->size);
+		data->width   = imageHeap.heap[imageHeap.get_ptr]->width;
+		data->height  = imageHeap.heap[imageHeap.get_ptr]->height;
+		data->size    = imageHeap.heap[imageHeap.get_ptr]->size;
+		data->number  = imageHeap.heap[imageHeap.get_ptr]->number;
 
 		imageHeap.get_ptr = (imageHeap.get_ptr + 1) % imageHeap.depth;
 
@@ -1011,10 +1218,70 @@ int imageHeapGet(struct ImageHeapUnit *data)
 	return 0;
 }
 
+int imageUnitHeapPut(struct ImageBuffer *image, struct SyncCamTimeStamp *time_stamp)
+{
+	if(image == NULL || time_stamp == NULL)
+	{
+		fprintf(stderr, "%s: data is null\n",__func__);
+		return -1;
+	}
+
+	pthread_mutex_lock(&mutexImageUnitHeap);
+
+	memcpy(imageUnitHeap.heap[imageUnitHeap.put_ptr]->image->image,image->image,image->size);
+	imageUnitHeap.heap[imageUnitHeap.put_ptr]->image->size 		= image->size;
+	imageUnitHeap.heap[imageUnitHeap.put_ptr]->image->width 	= image->width;
+	imageUnitHeap.heap[imageUnitHeap.put_ptr]->image->height 	= image->height;
+	imageUnitHeap.heap[imageUnitHeap.put_ptr]->image->number 	= image->number;
+
+	memcpy(imageUnitHeap.heap[imageUnitHeap.put_ptr]->time_stamp,time_stamp,sizeof(struct SyncCamTimeStamp));
+
+	imageUnitHeap.put_ptr = (imageUnitHeap.put_ptr + 1) % imageUnitHeap.depth;
+
+	imageUnitHeap.cnt += 1;
+	if(imageUnitHeap.cnt >= imageUnitHeap.depth)
+	{
+		imageUnitHeap.cnt = imageUnitHeap.depth;
+
+		imageUnitHeap.get_ptr = imageUnitHeap.put_ptr;
+	}
+
+	pthread_mutex_unlock(&mutexImageUnitHeap);
+
+	return 0;
+}
+
+int imageUnitHeapGet(struct ImageUnit *data)
+{
+	if(data == NULL)
+	{
+		fprintf(stderr, "%s: data is null\n",__func__);
+		return -1;
+	}
+
+	if(imageUnitHeap.cnt == 0)
+	{
+		return -1;
+	}
+
+	pthread_mutex_lock(&mutexImageUnitHeap);
+
+	if(imageUnitHeap.cnt > 0)
+	{
+		memcpy(data,imageUnitHeap.heap[imageUnitHeap.get_ptr],sizeof(struct ImageUnit));
+
+		imageUnitHeap.get_ptr = (imageUnitHeap.get_ptr + 1) % imageUnitHeap.depth;
+
+		imageUnitHeap.cnt -= 1;
+	}
+
+	pthread_mutex_unlock(&mutexImageUnitHeap);
+
+	return 0;
+}
+
 int imuAdis16505HeapPut(struct SyncImuData *data)
 {
-	int ret = 0;
-
 	if(data == NULL)
 	{
 		fprintf(stderr, "%s: data is null\n",__func__);
@@ -1024,14 +1291,6 @@ int imuAdis16505HeapPut(struct SyncImuData *data)
 	pthread_mutex_lock(&mutexImuAdis16505Heap);
 
 	memcpy(imuAdis16505Heap.heap[imuAdis16505Heap.put_ptr],data,sizeof(struct SyncImuData));
-
-	ret = xQueueSend((key_t)KEY_IMU_ADS16505_HANDLER_MSG,
-	                 imuAdis16505Heap.heap[imuAdis16505Heap.put_ptr],
-					 imuAdis16505Heap.depth);
-	if(ret == -1)
-	{
-		fprintf(stderr, "%s: send imuAdis16505Heap.heap[imuAdis16505Heap.put_ptr] queue msg failed\n",__func__);
-	}
 
 	imuAdis16505Heap.put_ptr = (imuAdis16505Heap.put_ptr + 1) % imuAdis16505Heap.depth;
 
@@ -1079,8 +1338,6 @@ int imuAdis16505HeapGet(struct SyncImuData *data)
 
 int imuMpu9250HeapPut(struct Mpu9250SampleData *data)
 {
-	int ret = 0;
-
 	if(data == NULL)
 	{
 		fprintf(stderr, "%s: data is null\n",__func__);
@@ -1090,14 +1347,6 @@ int imuMpu9250HeapPut(struct Mpu9250SampleData *data)
 	pthread_mutex_lock(&mutexImuMpu9250Heap);
 
 	memcpy(imuMpu9250Heap.heap[imuMpu9250Heap.put_ptr],data,sizeof(struct Mpu9250SampleData));
-
-	ret = xQueueSend((key_t)KEY_IMU_MPU9250_HANDLER_MSG,
-	                 imuMpu9250Heap.heap[imuMpu9250Heap.put_ptr],
-					 imuMpu9250Heap.depth);
-	if(ret == -1)
-	{
-		fprintf(stderr, "%s: send imuMpu9250Heap.heap[imuMpu9250Heap.put_ptr] queue msg failed\n",__func__);
-	}
 
 	imuMpu9250Heap.put_ptr = (imuMpu9250Heap.put_ptr + 1) % imuMpu9250Heap.depth;
 
@@ -1156,14 +1405,6 @@ int gnssUb482HeapPut(struct Ub482GnssData *data)
 
 	memcpy(gnssUb482Heap.heap[gnssUb482Heap.put_ptr],data,sizeof(struct Ub482GnssData));
 
-	ret = xQueueSend((key_t)KEY_GNSS_UB482_HANDLER_MSG,
-	                 gnssUb482Heap.heap[gnssUb482Heap.put_ptr],
-					 gnssUb482Heap.depth);
-	if(ret == -1)
-	{
-		fprintf(stderr, "%s: send gnssUb482Heap.heap[gnssUb482Heap.put_ptr] queue msg failed\n",__func__);
-	}
-
 	gnssUb482Heap.put_ptr = (gnssUb482Heap.put_ptr + 1) % gnssUb482Heap.depth;
 
 	gnssUb482Heap.cnt += 1;
@@ -1205,6 +1446,202 @@ int gnssUb482HeapGet(struct Ub482GnssData *data)
 	pthread_mutex_unlock(&mutexGnssUb482Heap);
 
 	return 0;
+}
+
+int syncCamTimeStampHeapPut(struct SyncCamTimeStamp *data)
+{
+	int ret = 0;
+
+	if(data == NULL)
+	{
+		fprintf(stderr, "%s: data is null\n",__func__);
+		return -1;
+	}
+
+	pthread_mutex_lock(&mutexSyncCamTimeStampHeap);
+
+	memcpy(syncCamTimeStampHeap.heap[syncCamTimeStampHeap.put_ptr],data,sizeof(struct SyncCamTimeStamp));
+
+	if(ret == -1)
+	{
+		fprintf(stderr, "%s: send syncCamTimeStampHeap.heap[syncCamTimeStampHeap.put_ptr] queue msg failed\n",__func__);
+	}
+
+	syncCamTimeStampHeap.put_ptr = (syncCamTimeStampHeap.put_ptr + 1) % syncCamTimeStampHeap.depth;
+
+	syncCamTimeStampHeap.cnt += 1;
+	if(syncCamTimeStampHeap.cnt >= syncCamTimeStampHeap.depth)
+	{
+		syncCamTimeStampHeap.cnt = syncCamTimeStampHeap.depth;
+
+		syncCamTimeStampHeap.get_ptr = syncCamTimeStampHeap.put_ptr;
+	}
+	pthread_mutex_unlock(&mutexSyncCamTimeStampHeap);
+
+	return 0;
+}
+
+int syncCamTimeStampHeapGet(struct SyncCamTimeStamp *data)
+{
+	if(data == NULL)
+	{
+		fprintf(stderr, "%s: data is null\n",__func__);
+		return -1;
+	}
+
+	if(syncCamTimeStampHeap.cnt == 0)
+	{
+		return -1;
+	}
+
+	pthread_mutex_lock(&mutexSyncCamTimeStampHeap);
+
+	if(syncCamTimeStampHeap.cnt > 0)
+	{
+		memcpy(data,syncCamTimeStampHeap.heap[syncCamTimeStampHeap.get_ptr],sizeof(struct SyncCamTimeStamp));
+
+		syncCamTimeStampHeap.get_ptr = (syncCamTimeStampHeap.get_ptr + 1) % syncCamTimeStampHeap.depth;
+
+		syncCamTimeStampHeap.cnt -= 1;
+	}
+
+	pthread_mutex_unlock(&mutexSyncCamTimeStampHeap);
+
+	return 0;
+}
+
+int copyImageUnit(struct ImageUnit *in,struct ImageUnit **out)
+{
+	if(in == NULL)
+	{
+		return -1;
+	}
+
+	(*out) = (struct ImageUnit *)malloc(sizeof(struct ImageUnit));
+	if((*out) != NULL)
+	{
+		(*out)->image = NULL;
+		(*out)->image = (struct ImageBuffer *)malloc(sizeof(struct ImageBuffer));
+		if((*out)->image == NULL)
+		{
+			free((*out));
+			(*out) = NULL;
+
+			fprintf(stderr, "%s: malloc (*out)->image failed\n",__func__);
+
+			return -1;
+		}
+		else
+		{
+			memset((*out)->image,0,sizeof(struct ImageBuffer));
+
+			(*out)->image->size = in->image->size;
+
+			(*out)->image->image = (char *)malloc((*out)->image->size * sizeof(char));
+			if((*out)->image->image == NULL)
+			{
+				free((*out)->image);
+				(*out)->image = NULL;
+
+				free((*out));
+				(*out) = NULL;
+
+				fprintf(stderr, "%s: malloc (*out)->image->image failed\n",__func__);
+
+				return -1;
+			}
+			else
+			{
+				memcpy((*out)->image->image,in->image->image,(*out)->image->size);
+
+				(*out)->time_stamp = NULL;
+				if((*out)->time_stamp != NULL)
+				{
+					free((*out)->image->image);
+					(*out)->image->image = NULL;
+
+					free((*out)->image);
+					(*out)->image = NULL;
+
+					free((*out));
+					(*out) = NULL;
+
+					fprintf(stderr, "%s: (*out)->time_stamp does not null\n",__func__);
+
+					return -1;
+				}
+				else
+				{
+					(*out)->time_stamp = NULL;
+					(*out)->time_stamp = (struct SyncCamTimeStamp *)malloc(sizeof(struct SyncCamTimeStamp));
+					if((*out)->time_stamp == NULL)
+					{
+						free((*out)->time_stamp);
+						(*out)->time_stamp = NULL;
+
+						free((*out)->image->image);
+						(*out)->image->image = NULL;
+
+						free((*out)->image);
+						(*out)->image = NULL;
+
+						free((*out));
+						(*out) = NULL;
+
+						fprintf(stderr, "%s: malloc (*out)->time_stamp failed\n",__func__);
+
+						return -1;
+					}
+					else
+					{
+						memset((*out)->time_stamp,0,sizeof(struct SyncCamTimeStamp));
+
+						memcpy((*out)->image->image,in->image->image,(*out)->image->size);
+						(*out)->image->width   = in->image->width;
+						(*out)->image->height  = in->image->height;
+						(*out)->image->size    = in->image->size;
+						(*out)->image->number  = in->image->number;
+
+						(*out)->time_stamp->time_stamp_local   = in->time_stamp->time_stamp_local;
+						(*out)->time_stamp->time_stamp_gnss    = in->time_stamp->time_stamp_gnss;
+						(*out)->time_stamp->counter            = in->time_stamp->counter;
+						(*out)->time_stamp->number             = in->time_stamp->number;
+					}
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
+void freeImageUnit(struct ImageUnit **unit)
+{
+	if((*unit) == NULL)
+	{
+		return;
+	}
+
+	if((*unit)->image != NULL)
+	{
+		if((*unit)->image->image != NULL)
+		{
+			free((*unit)->image->image);
+			(*unit)->image->image = NULL;
+		}
+
+		free((*unit)->image);
+		(*unit)->image = NULL;
+	}
+
+	if((*unit)->time_stamp != NULL)
+	{
+		free((*unit)->time_stamp);
+		(*unit)->time_stamp = NULL;
+	}
+
+	free((*unit));
+	(*unit) = NULL;
 }
 
 /*
@@ -1449,7 +1886,7 @@ int imageBufCompressToJpeg(char *file_name,
         jpeg_write_scanlines(&com_cinfo, row_pointer, 1);
     }
 
-	if(format == 0)
+	if(format == 0 || (format != 0 && camera_type == 1))
 	{
 		free(rgb_buf);
     	rgb_buf = NULL;
@@ -1642,16 +2079,49 @@ int imageBufCompressToBmp(char *file_name,struct ImageBuffer *image,unsigned cha
     fwrite(rgb_buf,image_size,1,fp);
     fclose(fp);
 
+	free(rgb_buf);
+	rgb_buf = NULL;
+
     return 0;
 }
 
 static void syncAndMutexCreate(void)
 {
-    pthread_mutex_init(&mutexImageHeap, NULL);
+	int ret = 0;
+
+/* 	pthread_condattr_t attr;
+
+    pthread_condattr_init(&attr);
+	pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+	pthread_cond_init(&condImageHeap, &attr);
+	pthread_cond_init(&condSyncCamTimeStampHeap, &attr);
+	pthread_condattr_destroy(&attr); */
+
+	pthread_mutex_init(&mutexImageHeap, NULL);
+    pthread_mutex_init(&mutexImageUnitHeap, NULL);
     pthread_mutex_init(&mutexImuAdis16505Heap, NULL);
     pthread_mutex_init(&mutexImuMpu9250Heap, NULL);
     pthread_mutex_init(&mutexGnssUb482Heap, NULL);
-    pthread_cond_init(&condImageHeap, NULL);
+	pthread_mutex_init(&mutexSyncCamTimeStampHeap, NULL);
+
+	ret = sem_init(&sem_t_ImageHeap, 0, 1);
+    if(ret != 0)
+	{
+        fprintf(stderr, "%s: init sem_t_ImageHeap failed\n",__func__);
+    }
+
+	ret = sem_init(&sem_t_ImageUnitHeap, 0, 1);
+    if(ret != 0)
+	{
+        fprintf(stderr, "%s: init sem_t_ImageUnitHeap failed\n",__func__);
+    }
+
+	ret = sem_init(&sem_t_SyncCamTimeStampHeap, 0, 1);
+    if(ret != 0)
+	{
+        fprintf(stderr, "%s: init sem_t_SyncCamTimeStampHeap failed\n",__func__);
+    }
+
 }
 
 static int pthreadCreate(void *args)
@@ -1684,11 +2154,11 @@ static int pthreadCreate(void *args)
         fprintf(stderr, "%s: create thread_net failed\n",__func__);
     }
 */
-    ret = pthread_create(&tid_mpu9250,NULL,thread_mpu9250,&cmdArgs);
+/*     ret = pthread_create(&tid_mpu9250,NULL,thread_mpu9250,&cmdArgs);
     if(0 != ret)
     {
         fprintf(stderr, "%s: create thread_mpu9250 failed\n",__func__);
-    }
+    } */
 
     if(cmdArgs.camera_module == 0)
     {
@@ -1719,11 +2189,11 @@ static int pthreadCreate(void *args)
         fprintf(stderr, "%s: create thread_sync failed\n",__func__);
     }
 
-    ret = pthread_create(&tid_led,NULL,thread_led,&cmdArgs);
+/*      ret = pthread_create(&tid_led,NULL,thread_led,&cmdArgs);
     if(0 != ret)
     {
         fprintf(stderr, "%s: create thread_led failed\n",__func__);
-    }
+    } */
 
 	ret = pthread_create(&tid_image_handler,NULL,thread_image_handler,NULL);
     if(0 != ret)

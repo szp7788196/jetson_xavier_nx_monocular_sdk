@@ -7,6 +7,7 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <signal.h>
+#include <semaphore.h>
 #include "monocular.h"
 #include "serial.h"
 #include "cmd_parse.h"
@@ -18,7 +19,6 @@
 // len = 3 + 8 + 8 + 4 = 23
 static enum SyncState syncState = SET_STOP;
 static struct Serial serialSync;
-static struct SyncImuData syncImuData;
 static double frameRate = 30.0f;
 static pthread_t tid_serial_recv = 0;
 static unsigned int CamTimeStampNumber = 0;
@@ -127,14 +127,29 @@ static void *thread_serial_recv(void *arg)
 
                             if(ringbuf_elements(&ring_fifo) == IMU_DATA_LEN)
                             {
-                                ret = syncParseImuData(ring_fifo.data,&syncImuData);
-                                if(ret != 0)
+                                struct SyncImuData *sync_imu_data = NULL;
+
+                                sync_imu_data = (struct SyncImuData *)malloc(sizeof(struct SyncImuData));
+                                if(sync_imu_data != NULL)
                                 {
-                                    fprintf(stderr, "%s: parse imu data failed\n",__func__);
-                                }
-                                else
-                                {
-                                    imuAdis16505HeapPut(&syncImuData);
+                                    ret = syncParseImuData(ring_fifo.data,sync_imu_data);
+                                    if(ret != 0)
+                                    {
+                                        free(sync_imu_data);
+                                        sync_imu_data = NULL;
+
+                                        fprintf(stderr, "%s: parse imu ads16505 data failed\n",__func__);
+                                    }
+                                    else
+                                    {
+                                        imuAdis16505HeapPut(sync_imu_data);
+
+                                        ret = xQueueSend((key_t)KEY_IMU_ADS16505_HANDLER_MSG,sync_imu_data,MAX_QUEUE_MSG_NUM);
+                                        if(ret == -1)
+                                        {
+                                            fprintf(stderr, "%s: send sync_imu_data queue msg failed\n",__func__);
+                                        }
+                                    }
                                 }
 
                                 parser_state = IDLE;
@@ -154,14 +169,21 @@ static void *thread_serial_recv(void *arg)
                                     ret = syncParseCamTimeStamp(ring_fifo.data,time_stamp);
                                     if(ret != 0)
                                     {
+                                        free(time_stamp);
+                                        time_stamp = NULL;
+
                                         fprintf(stderr, "%s: parse camera time stamp failed\n",__func__);
                                     }
                                     else
                                     {
+                                        syncCamTimeStampHeapPut(time_stamp);
+
+                                        sem_post(&sem_t_SyncCamTimeStampHeap);
+
                                         ret = xQueueSend((key_t)KEY_SYNC_CAM_TIME_STAMP_MSG,time_stamp,MAX_QUEUE_MSG_NUM);
                                         if(ret == -1)
                                         {
-                                            fprintf(stderr, "%s: send sync camera time stamp queue msg failed\n",__func__);
+                                            fprintf(stderr, "%s: send time_stamp queue msg failed\n",__func__);
                                         }
                                     }
                                 }
@@ -341,6 +363,7 @@ static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *c
 {
     int ret = 0;
     static unsigned int last_counter = 0;
+    static double last_time_stamp_local = 0.0f;
     unsigned long time_stamp = 0;
     unsigned char i = 0;
 
@@ -369,6 +392,8 @@ static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *c
 
     cam_time_stamp->time_stamp_local = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
+    last_time_stamp_local = cam_time_stamp->time_stamp_local;
+
     time_stamp = ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) +
                  ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) +
                  ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) +
@@ -381,14 +406,14 @@ static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *c
     cam_time_stamp->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
 
     cam_time_stamp->number = CamTimeStampNumber ++;
-/*
-    if(image_timestamp == 100)
+
+/*     if(cam_time_stamp->number == 1000)
     {
         syncSetCamTrigStop();
-    }
- */
+    } */
+
     // fprintf(stderr, "%s: time_stamp ======================================= %lf\n",__func__,cam_time_stamp->time_stamp_local);
-    // fprintf(stderr, "%s: cam_time_stamp->number ======================================= %d\n",__func__,cam_time_stamp->number);
+    // fprintf(stdout, "%s: cam_time_stamp->number ======================== %d\n",__func__,cam_time_stamp->number);
 
     return ret;
 }
@@ -504,6 +529,7 @@ void *thread_sync_module(void *arg)
     }
 
     allocateImuAdis16505Heap(args->sync_heap_depth);
+    allocateSyncCamTimeStampHeap(args->ts_heap_depth);
 
     ret = pthread_create(&tid_serial_recv,NULL,thread_serial_recv,&serialSync);
     if(0 != ret)

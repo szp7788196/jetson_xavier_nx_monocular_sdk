@@ -666,35 +666,23 @@ static int recvAndParseUb482GnssData(void)
             }
             else if(strstr(recv_buf, "#TIMEA") != NULL)
             {
-                gnssUb482HeapPut(&ub482GnssData);
+                struct Ub482GnssData *ub482_gnss_data = NULL;
+
+                ub482_gnss_data = (struct Ub482GnssData *)malloc(sizeof(struct Ub482GnssData));
+                if(ub482_gnss_data != NULL)
+                {
+                    memcpy(ub482_gnss_data,&ub482GnssData,sizeof(struct Ub482GnssData));
+
+                    gnssUb482HeapPut(ub482_gnss_data);
+
+                    ret = xQueueSend((key_t)KEY_GNSS_UB482_HANDLER_MSG,ub482_gnss_data,MAX_QUEUE_MSG_NUM);
+                    if(ret == -1)
+                    {
+                        fprintf(stderr, "%s: send ub482_gnss_data queue msg failed\n",__func__);
+                    }
+                }
 
                 sendTimeStampMsgToThreadSync();
-/*
-                printf("*******************************************\n");
-                printf("* time_stamp: %lf\n",ub482GnssData.time_stamp);
-                printf("* pos_type  : %d\n",(unsigned char)ub482GnssData.pos_type);
-                printf("* vel_type  : %d\n",(unsigned char)ub482GnssData.vel_type);
-                printf("* att_type  : %d\n",(unsigned char)ub482GnssData.att_type);
-                printf("* lat       : %lf\n",ub482GnssData.lat);
-                printf("* lon       : %lf\n",ub482GnssData.lon);
-                printf("* height    : %lf\n",ub482GnssData.height);
-                printf("* lat_std   : %lf\n",ub482GnssData.lat_std);
-                printf("* lon_std   : %lf\n",ub482GnssData.lon_std);
-                printf("* height_std: %lf\n",ub482GnssData.height_std);
-                printf("* vx        : %lf\n",ub482GnssData.vx);
-                printf("* vy        : %lf\n",ub482GnssData.vy);
-                printf("* vz        : %lf\n",ub482GnssData.vz);
-                printf("* vx_std    : %lf\n",ub482GnssData.vx_std);
-                printf("* vy_std    : %lf\n",ub482GnssData.vy_std);
-                printf("* vz_std    : %lf\n",ub482GnssData.vz_std);
-                printf("* pitch     : %f\n",ub482GnssData.pitch);
-                printf("* roll      : %f\n",ub482GnssData.roll);
-                printf("* yaw       : %f\n",ub482GnssData.yaw);
-                printf("* pitch_std : %f\n",ub482GnssData.pitch_std);
-                printf("* roll_std  : %f\n",ub482GnssData.roll_std);
-                printf("* yaw_std   : %f\n",ub482GnssData.yaw_std);
-                printf("*******************************************\n");
-*/
             }
             else
             {

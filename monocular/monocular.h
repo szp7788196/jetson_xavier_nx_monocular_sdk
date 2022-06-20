@@ -5,6 +5,8 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <time.h>
+#include <semaphore.h>
 #include "mpu9250.h"
 #include "sync_module.h"
 #include "ub482.h"
@@ -56,7 +58,8 @@ enum CameraState
     SET_TRIGGER_MODE        = 7,            //设置触发模式 外部触发 自由模式
 	START_CAPTURE           = 8,            //采集图像
     CAPTURE_IMAGE           = 9,            //采集图像
-    DISCONNECT_CAMERA       = 10,            //断开相机链接
+	STOP_CAPTURE			= 10,
+    DISCONNECT_CAMERA       = 11,           //断开相机链接
 };
 
 struct QueueMsg
@@ -77,19 +80,27 @@ struct ImageBuffer
 	unsigned short width;
 	unsigned short height;
     unsigned int size;
-	unsigned int counter;
 	unsigned int number;
 };
 
-struct ImageHeapUnit
+struct ImageHeap
+{
+	struct ImageBuffer **heap;
+	unsigned short depth;
+	unsigned short cnt;
+	unsigned short get_ptr;
+	unsigned short put_ptr;
+};
+
+struct ImageUnit
 {
 	struct ImageBuffer *image;
 	struct SyncCamTimeStamp *time_stamp;
 };
 
-struct ImageHeap
+struct ImageUnitHeap
 {
-	struct ImageHeapUnit **heap;
+	struct ImageUnit **heap;
 	unsigned short depth;
 	unsigned short cnt;
 	unsigned short get_ptr;
@@ -114,6 +125,15 @@ struct ImuMpu9250Heap
 	unsigned short put_ptr;
 };
 
+struct SyncCamTimeStampHeap
+{
+	struct SyncCamTimeStamp **heap;
+	unsigned short depth;
+	unsigned short cnt;
+	unsigned short get_ptr;
+	unsigned short put_ptr;
+};
+
 struct GnssUb482Heap
 {
 	struct Ub482GnssData **heap;
@@ -123,7 +143,7 @@ struct GnssUb482Heap
 	unsigned short put_ptr;
 };
 
-typedef int (*ImageHandler)(struct ImageHeapUnit *);
+typedef int (*ImageHandler)(struct ImageUnit *);
 typedef int (*ImuAds16505Handler)(struct SyncImuData *);
 typedef int (*ImuMpu9250Handler)(struct Mpu9250SampleData *);
 typedef int (*GnssUb482Handler)(struct Ub482GnssData *);
@@ -273,16 +293,24 @@ static const unsigned int tbl_CRC24Q[] =
     0x42FA2F,0xC4B6D4,0xC82F22,0x4E63D9,0xD11CCE,0x575035,0x5BC9C3,0xDD8538
 };
 
+extern struct ImageBuffer imageBuffer;
+extern struct ImageUnit imageUnit;
 extern struct ImageHeap imageHeap;
+extern struct ImageUnitHeap imageUnitHeap;
 extern struct ImuAdis16505Heap imuAdis16505Heap;
 extern struct ImuMpu9250Heap imuMpu9250Heap;
 extern struct GnssUb482Heap gnssUb482Heap;
+extern struct SyncCamTimeStampHeap syncCamTimeStampHeap;
 
 extern pthread_mutex_t mutexImageHeap;
+extern pthread_mutex_t mutexImageUnitHeap;
 extern pthread_mutex_t mutexImuAdis16505Heap;
 extern pthread_mutex_t mutexImuMpu9250Heap;
 extern pthread_mutex_t mutexGnssUb482Heap;
-extern pthread_cond_t condImageHeap;
+extern pthread_mutex_t mutexSyncCamTimeStampHeap;
+extern sem_t sem_t_ImageHeap;
+extern sem_t sem_t_ImageUnitHeap;
+extern sem_t sem_t_SyncCamTimeStampHeap;
 
 extern struct DataHandler dataHandler;
 
@@ -320,12 +348,16 @@ int AT_SendCmd(struct Serial *sn,
                unsigned int waittime,
                unsigned char retry,
                unsigned int timeout);
+long long tm_to_ns(struct timespec tm);
+struct timespec ns_to_tm(long long ns);
 int queryEC20_IMEI(char *imei);
 int xQueueSend(key_t queue_key,void *msg_to_queue,unsigned short queue_depth);
 int xQueueReceive(key_t queue_key,void **msg_from_queue,unsigned char block);
-void freeImageHeap(void);
 void clearSystemQueueMsg(void);
+void freeImageHeap(void);
 int allocateImageHeap(unsigned short depth,unsigned int image_size);
+void freeImageUnitHeap(void);
+int allocateImageUnitHeap(unsigned short depth,unsigned int image_size);
 void freeImuAdis16505Heap(void);
 int allocateImuAdis16505Heap(unsigned short depth);
 void freeImuMpu9250Heap(void);
@@ -333,14 +365,27 @@ int allocateImuMpu9250Heap(unsigned short depth);
 void freeGnssUb482Heap(void);
 int allocateGnssUb482Heap(unsigned short depth);
 int gnssUb482HeapGet(struct Ub482GnssData *data);
-int imageHeapGet(struct ImageHeapUnit *data);
+int imageHeapPut(struct ImageBuffer *data);
+int imageHeapGet(struct ImageBuffer *data);
+int imageUnitHeapPut(struct ImageBuffer *image, struct SyncCamTimeStamp *time_stamp);
+int imageUnitHeapGet(struct ImageUnit *data);
 int imuAdis16505HeapPut(struct SyncImuData *data);
 int imuAdis16505HeapGet(struct SyncImuData *data);
 int imuMpu9250HeapPut(struct Mpu9250SampleData *data);
 int imuMpu9250HeapGet(struct Mpu9250SampleData *data);
 int gnssUb482HeapPut(struct Ub482GnssData *data);
 int gnssUb482HeapGet(struct Ub482GnssData *data);
+int syncCamTimeStampHeapPut(struct SyncCamTimeStamp *data);
+int syncCamTimeStampHeapGet(struct SyncCamTimeStamp *data);
+void freeSyncCamTimeStampHeap(void);
+int allocateSyncCamTimeStampHeap(unsigned short depth);
+int copyImageUnit(struct ImageUnit *in,struct ImageUnit **out);
+void freeImageUnit(struct ImageUnit **unit);
 int convert_UYVY_To_RGB(unsigned char *in_buf,
+                        unsigned char *out_buf,
+						int image_width,
+						int image_height);
+int convert_UYVY_To_GRAY(unsigned char *in_buf,
                         unsigned char *out_buf,
 						int image_width,
 						int image_height);

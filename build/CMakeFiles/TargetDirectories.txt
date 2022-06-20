@@ -1,4 +1,0 @@
-/home/szp/work/nvidia/applications/monocular_sdk/build/CMakeFiles/rebuild_cache.dir
-/home/szp/work/nvidia/applications/monocular_sdk/build/CMakeFiles/edit_cache.dir
-/home/szp/work/nvidia/applications/monocular_sdk/build/CMakeFiles/monocular.dir
-/home/szp/work/nvidia/applications/monocular_sdk/build/CMakeFiles/sdk.dir

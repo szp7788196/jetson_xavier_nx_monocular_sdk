@@ -200,5 +200,6 @@ struct Cssc132Config
 
 
 void *thread_cssc132(void *arg);
+void pthread_cssc132_exit(int para);
 
 #endif

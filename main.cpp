@@ -1,0 +1,138 @@
+#include <opencv2/core/core.hpp>
+#include <opencv2/core/core_c.h>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/highgui/highgui_c.h>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "monocular.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include "ui3240.h"
+#include "cssc132.h"
+#include <signal.h>
+
+#ifdef __cplusplus
+}
+#endif
+
+using namespace cv;
+
+int imageHandler(struct ImageUnit *image)
+{
+    int ret = 0;
+    struct timeval tv[2];
+    char image_name[64] = {0};
+    long long int time_stamp = 0;
+    FILE *fp;
+    char time_stamp_buf[64] = {0};
+
+    fp = fopen("/home/szp/work/images/0_time_stamp.txt", "a+");
+    if(fp == NULL)
+    {
+        fprintf(stderr, "%s: Could not open time_stamp file\n",__func__);
+		return -1;
+    }
+
+    time_stamp = (long long int)(image->time_stamp->time_stamp_local * 1000000000.0);
+
+    snprintf(image_name,63,"/home/szp/work/images/%lld.jpg",time_stamp);
+
+    snprintf(time_stamp_buf,63,"%lld\n",time_stamp);
+
+    fwrite(time_stamp_buf, strlen(time_stamp_buf) , 1, fp);
+
+    fclose(fp);
+
+    gettimeofday(&tv[0],NULL);
+
+
+    ret = imageBufCompressToJpeg(image_name,50,image->image,1,1);
+    if(ret != 0)
+    {
+        fprintf(stderr, "%s: compress image buf to jpeg picture failed\n",__func__);
+    }
+
+    Mat img(image->image->height,image->image->width,CV_8UC1);
+    convert_UYVY_To_GRAY((unsigned char *)image->image->image,
+                         img.data,
+						 image->image->width,
+						 image->image->height);
+    imshow("Capture", img);
+	waitKey(1);
+
+
+    gettimeofday(&tv[1],NULL);
+
+    fprintf(stderr, "save jpg: %ldms\n",(tv[1].tv_sec * 1000 + tv[1].tv_usec / 1000) - (tv[0].tv_sec * 1000 + tv[0].tv_usec / 1000));
+
+
+    printf("\r\n");
+    printf("======================= image timestamp start =======================\n");
+    printf("* image->time_stamp->time_stamp_local : %lf\n",image->time_stamp->time_stamp_local);
+    printf("* image->time_stamp->time_stamp_gnss  : %lf\n",image->time_stamp->time_stamp_gnss);
+    printf("* image->time_stamp->counter          : %d\n",image->time_stamp->counter);
+    printf("* image->image->number                : %d\n",image->image->number);
+    printf("* image->time_stamp->number           : %d\n",image->time_stamp->number);
+    printf("======================== image timestamp end ========================\n");
+
+    return ret;
+}
+
+int imuAds16505Handler(struct SyncImuData *imuAds16505)
+{
+    int ret = 0;
+    FILE *fp;
+    char imu_data[128] = {0};
+    long long int time_stamp = 0;
+
+    fp = fopen("/home/szp/work/imudatas/imu_data.txt", "a+");
+    if(fp == NULL)
+    {
+        fprintf(stderr, "%s: Could not open imu_data file\n",__func__);
+		return -1;
+    }
+
+    time_stamp = (long long int)(imuAds16505->time_stamp_local * 1000000000.0);
+
+    snprintf(imu_data,127,"%lld,%d,%d,%d,%d,%d,%d\n",
+             time_stamp,
+             imuAds16505->gx,
+             imuAds16505->gy,
+             imuAds16505->gz,
+             imuAds16505->ax,
+             imuAds16505->ay,
+             imuAds16505->az);
+
+    fwrite(imu_data, strlen(imu_data) , 1, fp);
+
+    fclose(fp);
+
+    return ret;
+}
+
+int main(int argc, char **argv)
+{
+    int ret = 0;
+
+    monocular_sdk_init(argc, argv);
+
+    monocular_sdk_register_handler(imageHandler,imuAds16505Handler,NULL,NULL);
+
+    cvNamedWindow("Capture",CV_WINDOW_AUTOSIZE);
+
+    while(1)
+    {
+        usleep(1000 * 1000);
+    }
+
+	return 0;
+}
+
+

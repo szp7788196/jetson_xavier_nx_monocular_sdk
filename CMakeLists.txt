@@ -4,9 +4,13 @@ project(monocular)
 
 set(CMAKE_BUILD_TYPE Release)
 
+set(JPEG_DIR /usr/local/lib)
+
 ############################################################
 # Create a library
 ############################################################
+
+find_package(OpenCV REQUIRED)
 
 #Generate the static library from the library sources
 add_library(monocular SHARED
@@ -27,7 +31,7 @@ add_library(monocular SHARED
 
 target_link_libraries(monocular
     m
-    jpeg
+    ${JPEG_DIR}/libjpeg.a
     png
     pthread
     ueye_api
@@ -51,6 +55,7 @@ target_link_libraries(monocular
 
 include_directories(
     ${UEYE_INCLUDE_DIR}
+    ${OpenCV_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/cmd_parse
     ${PROJECT_SOURCE_DIR}/cssc132
     ${PROJECT_SOURCE_DIR}/handler
@@ -72,7 +77,7 @@ include_directories(
 
 # Add an executable with the above sources
 add_executable(sdk
-    main.c
+    main.cpp
 #    main_read.c
 )
 
@@ -80,4 +85,5 @@ add_executable(sdk
 target_link_libraries(sdk
     PRIVATE
         monocular
+        ${OpenCV_LIBRARIES}
 )

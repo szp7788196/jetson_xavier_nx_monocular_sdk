@@ -11,6 +11,7 @@
 #include <sys/select.h>
 #include <sys/mman.h>
 #include <linux/videodev2.h>
+#include <semaphore.h>
 #include "monocular.h"
 #include "cmd_parse.h"
 
@@ -179,7 +180,7 @@ static int disconnectCamera(struct Cssc132Config *config)
         fprintf(stderr, "%s: v4l2 VIDIOC_STREAMOFF failed\n",__func__);
     }
 
-    if(config->frame_buf != NULL)
+/*     if(config->frame_buf != NULL)
     {
         for(i = 0; i < config->frame_num; i ++)
         {
@@ -194,7 +195,7 @@ static int disconnectCamera(struct Cssc132Config *config)
     }
 
     close(config->camera_fd);
-    close(config->ctrl_fd);
+    close(config->ctrl_fd); */
 
     return ret;
 }
@@ -1319,7 +1320,7 @@ static int loadCssc132UserConfig(char *filename,struct Cssc132Config *config)
 
             if(usercssc132config.exposure_frame_mode == 1)
             {
-                if(temp >= 100 && temp <= (unsigned int)(1000000 / usercssc132config.current_format.frame_rate))
+                if(temp >= 100 && temp <= (unsigned int)(1000000 / usercssc132config.trigger_frame_rate))
                 {
                     usercssc132config.auto_exposure_max_time = temp;
                     have_diff = 1;
@@ -1873,12 +1874,36 @@ static int reallocateCameraBuffer(struct Cssc132Config *config)
 		}
     }
 
+    if(imageBuffer.image != NULL)
+    {
+        free(imageBuffer.image);
+        imageBuffer.image = NULL;
+    }
+
+    if(imageBuffer.image == NULL)
+    {
+        imageBuffer.image = (char *)malloc(sizeof(char) * fmt.fmt.pix.sizeimage);
+        if(imageBuffer.image == NULL)
+        {
+            fprintf(stderr, "%s: malloc imageBuffer.image failed\n",__func__);
+            return -EAGAIN;
+        }
+    }
+
     freeImageHeap();
 
     ret = allocateImageHeap(config->image_heap_depth,fmt.fmt.pix.sizeimage);
     if(ret != 0)
     {
         fprintf(stderr, "%s: allocate image heap failed\n",__func__);
+    }
+
+    freeImageUnitHeap();
+
+    ret = allocateImageUnitHeap(config->image_heap_depth,fmt.fmt.pix.sizeimage);
+    if(ret != 0)
+    {
+        fprintf(stderr, "%s: allocate image unit heap failed\n",__func__);
     }
 
     return ret;
@@ -1939,6 +1964,34 @@ static int startCaptureImage(struct Cssc132Config config)
     return ret;
 }
 
+static int stopCaptureImage(struct Cssc132Config config)
+{
+    int ret = 0;
+    int i = 0;
+    enum v4l2_buf_type type;
+    struct v4l2_control v4l2_args;
+
+    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+    if(config.stream_mode != 0)
+    {
+        v4l2_args.id = TEGRA_CAMERA_CID_VI_TIME_OUT_DISABLE;
+        v4l2_args.value = 0;
+
+        if(ioctl(config.camera_fd, VIDIOC_S_CTRL, &v4l2_args) != 0)
+        {
+            fprintf(stderr, "%s: set vi timeout enable failed\n",__func__);
+        }
+    }
+
+    if(ioctl(config.camera_fd, VIDIOC_STREAMOFF, &type) == -1)
+    {
+        fprintf(stderr, "%s: v4l2 VIDIOC_STREAMOFF failed\n",__func__);
+    }
+
+    return ret;
+}
+
 static void sendFrameRateMsgToThreadSync(struct Cssc132Config config)
 {
     int ret = 0;
@@ -1980,12 +2033,13 @@ static void sendCameraReadyMsgToThreadSync(void)
     }
 }
 
-static int captureImage(struct Cssc132Config config,struct ImageHeap *image_heap,unsigned int *image_num)
+static int captureImage(struct Cssc132Config config,unsigned int *image_num)
 {
     int ret = 0;
     fd_set fds;
 	struct timeval tv;
     struct v4l2_buffer buf;
+    struct ImageBuffer image_buf;
 
     FD_ZERO(&fds);
 	FD_SET(config.camera_fd,&fds);
@@ -2018,15 +2072,15 @@ static int captureImage(struct Cssc132Config config,struct ImageHeap *image_heap
         return -EPERM;
     }
 
-    pthread_mutex_lock(&mutexImageHeap);
-    memcpy(image_heap->heap[imageHeap.put_ptr]->image->image,config.frame_buf[buf.index].start,config.frame_buf[buf.index].length);
+    image_buf.image     = config.frame_buf[buf.index].start;
+    image_buf.size      = config.frame_buf[buf.index].length;
+    image_buf.width     = config.current_format.width;
+    image_buf.height    = config.current_format.height;
+    image_buf.number    = (*image_num) ++;
 
-    image_heap->heap[imageHeap.put_ptr]->image->width = config.current_format.width;
-    image_heap->heap[imageHeap.put_ptr]->image->height = config.current_format.height;
-    image_heap->heap[imageHeap.put_ptr]->image->size = config.frame_buf[buf.index].length;
-    image_heap->heap[imageHeap.put_ptr]->image->number = (*image_num) ++;
+    // fprintf(stdout, "%s: image_buf->number ======================== %d\n",__func__,image_buf.number);
 
-    pthread_mutex_unlock(&mutexImageHeap);
+    imageHeapPut(&image_buf);
 
     ret = ioctl(config.camera_fd, VIDIOC_QBUF, &buf);
     if(ret == -1)
@@ -2125,6 +2179,8 @@ void *thread_cssc132(void *arg)
 
                 queryCssc132Config(&cssc132Config);
                 printCssc132Config(&cssc132Config);
+
+                v4l2QueryCameraInfo(cssc132Config);
             break;
 
             case (unsigned char)ALLOC_FRAME_BUFFER:     //申请帧缓存
@@ -2136,8 +2192,6 @@ void *thread_cssc132(void *arg)
                 }
                 else
                 {
-//                     sendFrameRateMsgToThreadSync(cssc132Config);
-
                     camera_state = START_CAPTURE;
                 }
             break;
@@ -2151,23 +2205,30 @@ void *thread_cssc132(void *arg)
                 }
                 else
                 {
-                    // sendCameraReadyMsgToThreadSync();
+                    // sendFrameRateMsgToThreadSync(cssc132Config);
 
                     camera_state = CAPTURE_IMAGE;
                 }
             break;
 
             case (unsigned char)CAPTURE_IMAGE:          //采集图像
-                ret = captureImage(cssc132Config,&imageHeap,&image_num);
+                ret = captureImage(cssc132Config,&image_num);
                 if(ret == 0)
                 {
-/*                     fprintf(stdout,"%s: capture iamge success,image_counter = %d, image_number = %d, put_ptr = %d\n",
-                            __func__,
-                            imageHeap.heap[imageHeap.put_ptr]->image->counter,
-                            imageHeap.heap[imageHeap.put_ptr]->image->number,
-                            imageHeap.put_ptr); */
+                    sem_post(&sem_t_ImageHeap);
+                }
+            break;
 
-                    pthread_cond_signal(&condImageHeap);
+            case (unsigned char)STOP_CAPTURE:          //停止采集
+                ret = stopCaptureImage(cssc132Config);
+                if(ret != 0)
+                {
+                    fprintf(stderr, "%s: stop capture image failed\n",__func__);
+                }
+                else
+                {
+                    usleep(1000 * 500);
+                    camera_state = START_CAPTURE;
                 }
             break;
 
@@ -2187,7 +2248,7 @@ void *thread_cssc132(void *arg)
         if(ret != -1)
         {
             image_num = 0;
-//            camera_state = DISCONNECT_CAMERA;
+            camera_state = STOP_CAPTURE;
         }
 
         ret = recvSync1HzSuccessMsg();
@@ -2197,3 +2258,4 @@ void *thread_cssc132(void *arg)
         }
     }
 }
+

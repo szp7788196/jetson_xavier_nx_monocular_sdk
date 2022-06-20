@@ -7,7 +7,7 @@
 struct CmdArgs cmdArgs;
 
 #define LONG_OPT(a) a
-#define ARGOPT "ha:b:c:d:e:f:g:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:J:K:L:M:N:O:P:Q:"
+#define ARGOPT "ha:b:c:d:e:f:g:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:J:K:L:M:N:O:P:Q:R:"
 
 static struct option opts[] =
 {
@@ -54,6 +54,7 @@ static struct option opts[] =
     { "sync_heap_depth",    required_argument, 0, 'O'},
     { "image_heap_depth",   required_argument, 0, 'P'},
     { "gnss_heap_depth",    required_argument, 0, 'Q'},
+    { "ts_heap_depth",      required_argument, 0, 'R'},
     { 0,                    0,                 0,  0 }
 };
 
@@ -106,6 +107,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
     args->sync_heap_depth           = 8;
     args->image_heap_depth          = 8;
     args->gnss_heap_depth           = 8;
+    args->ts_heap_depth             = 8;
 
     help = 0;
 
@@ -732,6 +734,19 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 }
             break;
 
+            case 'R':
+                i = 0;
+                i = strtol(optarg, 0, 10);
+                if(i < 0 || i > 256)
+                {
+                    res = 0;
+                }
+                else
+                {
+                    args->ts_heap_depth = i;
+                }
+            break;
+
             case 'h':
                 help = 1;
             break;
@@ -793,6 +808,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
         "| -N " LONG_OPT("--imu_heap_depth   ") "imu mpu9250 data heap depth,should be less than 256;                |\n"
         "| -O " LONG_OPT("--sync_heap_depth  ") "imu adis16505 data heap depth,should be less than 256;              |\n"
         "| -P " LONG_OPT("--image_heap_depth ") "image data heap depth,should be less than 256;                      |\n"
+        "| -R " LONG_OPT("--ts_heap_depth    ") "camera timestamp heap depth,should be less than 256;                |\n"
         "|===========================================================================================|\n"
         );
 

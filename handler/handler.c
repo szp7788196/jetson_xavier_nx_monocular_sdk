@@ -1,32 +1,56 @@
 #include "handler.h"
 #include "monocular.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 void *thread_image_handler(void *arg)
 {
     int ret = 0;
-    struct ImageHeapUnit *image_heap_unit = NULL;
+    int cpd = 0;
+    struct ImageUnit *image_unit = NULL;
+    struct timespec start_tm;
+	struct timespec end_tm;
+    int timeout_ms = 10;
 
     while(1)
     {
-        ret = xQueueReceive((key_t)KEY_IMAGE_HANDLER_MSG,(void **)&image_heap_unit,1);
-        if(ret == -1)
-        {
-            fprintf(stderr, "%s: recv KEY_IMAGE_HANDLER_MSG error\n",__func__);
-        }
-        else
-        {
-            if(dataHandler.image_handler != NULL)
-            {
-                pthread_mutex_lock(&mutexImageHeap);
+        clock_gettime(CLOCK_REALTIME, &start_tm);
+        end_tm = ns_to_tm(tm_to_ns(start_tm) + timeout_ms * 1000000);
 
-                ret = dataHandler.image_handler(image_heap_unit);
+        if(sem_timedwait(&sem_t_ImageUnitHeap, &end_tm) == 0)
+        {
+            pthread_mutex_lock(&mutexImageUnitHeap);
+
+            if(imageUnitHeap.cnt > 0)
+            {
+                cpd = copyImageUnit(imageUnitHeap.heap[imageUnitHeap.get_ptr],&image_unit);
+
+                imageUnitHeap.get_ptr = (imageUnitHeap.get_ptr + 1) % imageUnitHeap.depth;
+
+		        imageUnitHeap.cnt -= 1;
+
+                cpd = 1;
+            }
+
+            pthread_mutex_unlock(&mutexImageUnitHeap);
+        }
+
+        if(dataHandler.image_handler != NULL)
+        {
+            if(cpd == 1)
+            {
+                cpd = 0;
+
+                ret = dataHandler.image_handler(image_unit);
                 if(ret != 0)
                 {
                     fprintf(stderr, "%s: dataHandler.image_handler error\n",__func__);
                 }
 
-                pthread_mutex_unlock(&mutexImageHeap);
+                freeImageUnit(&image_unit);
+                image_unit = NULL;
             }
         }
     }

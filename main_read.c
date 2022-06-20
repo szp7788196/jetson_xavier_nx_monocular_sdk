@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 
-static struct ImageHeapUnit *image = NULL;
+static struct ImageUnit *image = NULL;
 static struct SyncImuData *imuAds16505 = NULL;
 static struct Mpu9250SampleData *imuMpu9250 = NULL;
 static struct Ub482GnssData *gnssUb482 = NULL;
@@ -15,7 +15,7 @@ int main(int argc, char **argv)
 
     monocular_sdk_init(argc, argv);
 
-    image       = (struct ImageHeapUnit *)malloc(sizeof(struct ImageHeapUnit));
+    image       = (struct ImageUnit *)malloc(sizeof(struct ImageUnit));
     imuAds16505 = (struct SyncImuData *)malloc(sizeof(struct SyncImuData));
     imuMpu9250  = (struct Mpu9250SampleData *)malloc(sizeof(struct Mpu9250SampleData));
     gnssUb482   = (struct Ub482GnssData *)malloc(sizeof(struct Ub482GnssData));
@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     {
         ret = imageHeapGet(image);
         if(ret == 0)
-        {            
+        {
             ret = imageBufCompressToJpeg("/home/szp/test_image.jpg",
                                         80,
                                         (unsigned char *)image->image->image,

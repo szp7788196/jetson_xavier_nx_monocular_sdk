@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 #include "monocular.h"
 #include "cmd_parse.h"
 
@@ -1243,12 +1244,36 @@ static int reallocateCameraBuffer(void)
 
     cameraConfig.frame_buf_size = cam_buffer_pitch * frame_height;
 
+    if(imageBuffer.image != NULL)
+    {
+        free(imageBuffer.image);
+        imageBuffer.image = NULL;
+    }
+
+    if(imageBuffer.image == NULL)
+    {
+        imageBuffer.image = (char *)malloc(sizeof(char) * cameraConfig.frame_buf_size);
+        if(imageBuffer.image == NULL)
+        {
+            fprintf(stderr, "%s: malloc imageBuffer.image failed\n",__func__);
+            return -EAGAIN;
+        }
+    }
+
     freeImageHeap();
 
     is_err = allocateImageHeap(cameraConfig.image_heap_depth,cameraConfig.frame_buf_size);
     if(is_err != IS_SUCCESS)
     {
         fprintf(stderr, "%s: allocate image heap failed\n",__func__);
+    }
+
+    freeImageUnitHeap();
+
+    is_err = allocateImageUnitHeap(cameraConfig.image_heap_depth,cameraConfig.frame_buf_size);
+    if(is_err != IS_SUCCESS)
+    {
+        fprintf(stderr, "%s: allocate image unit heap failed\n",__func__);
     }
 
     return is_err;
@@ -2711,13 +2736,14 @@ static int getTimestamp(UEYETIME *timestamp,int cam_buffer_id)
 }
 */
 
-static int captureImage(struct ImageHeap *image_heap,unsigned int *image_num,unsigned char capture_mode, unsigned short timeout_ms)
+static int captureImage(unsigned int *image_num,unsigned char capture_mode, unsigned short timeout_ms)
 {
     int is_err = IS_SUCCESS;
     static unsigned char mode = 255;
     char *memory = NULL;
     int id;
-//    UEYETIME time_stamp;
+    char *image = NULL;
+    struct ImageBuffer image_buf;
     IMAGEQUEUEWAITBUFFER waitBuffer;
     waitBuffer.timeout = timeout_ms;
     waitBuffer.pnMemId= &id;
@@ -2797,38 +2823,31 @@ static int captureImage(struct ImageHeap *image_heap,unsigned int *image_num,uns
             return IS_NO_SUCCESS;
         }
 
-        pthread_mutex_lock(&mutexImageHeap);
-        is_err = is_CopyImageMem(cameraConfig.camera_handle,memory,id,image_heap->heap[imageHeap.put_ptr]->image->image);
-        if(is_err != IS_SUCCESS)
+        image = (char *)malloc(sizeof(char) * cameraConfig.frame_buf_size);
+        if(image != NULL)
         {
-            pthread_mutex_unlock(&mutexImageHeap);
-            fprintf(stderr, "%s: copy image buffer failed,error code is %d\n",__func__,is_err);
-            return IS_NO_SUCCESS;
+            is_err = is_CopyImageMem(cameraConfig.camera_handle,memory,id,image);
+            if(is_err != IS_SUCCESS)
+            {
+                free(image);
+                image = NULL;
+                fprintf(stderr, "%s: copy image buffer failed,error code is %d\n",__func__,is_err);
+                return IS_NO_SUCCESS;
+            }
+
+            image_buf.image     = image;
+            image_buf.size      = cameraConfig.frame_buf_size;
+            image_buf.width     = (unsigned short)cameraConfig.image_width;
+            image_buf.height    = (unsigned short)cameraConfig.image_height;
+            image_buf.number    = (*image_num) ++;
+
+            imageHeapPut(&image_buf);
+
+            free(image);
+            image = NULL;
         }
 
-        image_heap->heap[imageHeap.put_ptr]->image->width = (unsigned short)cameraConfig.image_width;
-        image_heap->heap[imageHeap.put_ptr]->image->height = (unsigned short)cameraConfig.image_height;
-        image_heap->heap[imageHeap.put_ptr]->image->size = cameraConfig.frame_buf_size;
-        image_heap->heap[imageHeap.put_ptr]->image->number = (*image_num) ++;
         pthread_mutex_unlock(&mutexImageHeap);
-/*
-        is_err = getTimestamp(&time_stamp,id);
-        if(is_err != IS_SUCCESS)
-        {
-            fprintf(stderr, "%s: query image time stamp failed,error code is %d\n",__func__,is_err);
-            return IS_NO_SUCCESS;
-        }
-
-        printf("============================= time stamp start==============================\n");
-        printf("| year        : %d\n",time_stamp.wYear);
-        printf("| month       : %d\n",time_stamp.wMonth);
-        printf("| day         : %d\n",time_stamp.wDay);
-        printf("| hour        : %d\n",time_stamp.wHour);
-        printf("| minute      : %d\n",time_stamp.wMinute);
-        printf("| second      : %d\n",time_stamp.wSecond);
-        printf("| willi second: %d\n",time_stamp.wMilliseconds);
-        printf("============================= time stamp end ===============================\n");
-*/
     }
     else
     {
@@ -2861,14 +2880,13 @@ static int captureImage(struct ImageHeap *image_heap,unsigned int *image_num,uns
             return IS_NO_SUCCESS;
         }
 
-        pthread_mutex_lock(&mutexImageHeap);
-        memcpy(image_heap->heap[imageHeap.put_ptr]->image->image, memory, cameraConfig.frame_buf_size);
+        image_buf.image     = memory;
+        image_buf.size      = cameraConfig.frame_buf_size;
+        image_buf.width     = (unsigned short)cameraConfig.image_width;
+        image_buf.height    = (unsigned short)cameraConfig.image_height;
+        image_buf.number    = (*image_num) ++;
 
-        image_heap->heap[imageHeap.put_ptr]->image->width = (unsigned short)cameraConfig.image_width;
-        image_heap->heap[imageHeap.put_ptr]->image->height = (unsigned short)cameraConfig.image_height;
-        image_heap->heap[imageHeap.put_ptr]->image->size = cameraConfig.frame_buf_size;
-        image_heap->heap[imageHeap.put_ptr]->image->number = (*image_num) ++;
-        pthread_mutex_unlock(&mutexImageHeap);
+        imageHeapPut(&image_buf);
     }
 
     // Unlock the buffer which has been automatically locked by is_WaitForNextImage()
@@ -3130,16 +3148,12 @@ void *thread_ui3240(void *arg)
             break;
 
             case (unsigned char)CAPTURE_IMAGE:          //采集图像
-                ret = captureImage(&imageHeap,&image_num,
-                                   cameraConfig.capture_mode,
-                                   cameraConfig.capture_timeout);
+                ret = captureImage(&image_num,cameraConfig.capture_mode,cameraConfig.capture_timeout);
                 if(ret == IS_SUCCESS)
                 {
-/*                     fprintf(stdout,"%s: capture iamge success,image_counter = %d, put_ptr = %d\n",
-                            __func__,imageHeap.heap[imageHeap.put_ptr]->image->counter,imageHeap.put_ptr);
- */
                     capture_failed_cnt = 0;
-                    pthread_cond_signal(&condImageHeap);
+
+                    sem_post(&sem_t_ImageHeap);
                 }
                 else
                 {
