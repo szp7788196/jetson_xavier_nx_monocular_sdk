@@ -208,8 +208,11 @@ static int syncSetCamTrigFreq(unsigned short freq_hz)
     unsigned int  num = 0;
     unsigned char msg[7] = {0xEB, 0x90, 0x02, 0x00, 0x03, 0xD0, 0x8F};
     unsigned char tmp[4] = {0};
+    unsigned int freq = (unsigned int)freq_hz;
 
-    num = FPGA_CLOCK_HZ / 2 / freq_hz - 1;
+    // num = FPGA_CLOCK_HZ / 2 / freq_hz - 1;
+
+    num = freq;
 
     memcpy(tmp, &num, sizeof(unsigned int));
 
@@ -249,7 +252,8 @@ static int syncSetTimeStamp(double t)
     int i = 0;
     unsigned char msg[11] = {0xEB, 0x90, 0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
     unsigned char tmsg[8] = {0};
-    unsigned long time = (unsigned long )(t * 1000.0f) * FPGA_CLOCK_HZ;
+    // unsigned long time = (unsigned long )(t * 1000.0f) * FPGA_CLOCK_HZ;
+    unsigned long time = (unsigned long )t * FPGA_CLOCK_HZ;
 
     memcpy(tmsg, &time, 8);
 

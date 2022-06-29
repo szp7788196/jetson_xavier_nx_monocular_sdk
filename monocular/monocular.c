@@ -2141,7 +2141,7 @@ static int pthreadCreate(void *args)
 	static pthread_t tid_imu_mpu9250_handler = 0;
 	static pthread_t tid_gnss_ub482_handler = 0;
 
-/*
+
     ret = pthread_create(&tid_ub482,NULL,thread_ub482,&cmdArgs);
     if(0 != ret)
     {
@@ -2153,12 +2153,12 @@ static int pthreadCreate(void *args)
     {
         fprintf(stderr, "%s: create thread_net failed\n",__func__);
     }
-*/
-/*     ret = pthread_create(&tid_mpu9250,NULL,thread_mpu9250,&cmdArgs);
+
+    ret = pthread_create(&tid_mpu9250,NULL,thread_mpu9250,&cmdArgs);
     if(0 != ret)
     {
         fprintf(stderr, "%s: create thread_mpu9250 failed\n",__func__);
-    } */
+    }
 
     if(cmdArgs.camera_module == 0)
     {
@@ -2189,11 +2189,11 @@ static int pthreadCreate(void *args)
         fprintf(stderr, "%s: create thread_sync failed\n",__func__);
     }
 
-/*      ret = pthread_create(&tid_led,NULL,thread_led,&cmdArgs);
+     ret = pthread_create(&tid_led,NULL,thread_led,&cmdArgs);
     if(0 != ret)
     {
         fprintf(stderr, "%s: create thread_led failed\n",__func__);
-    } */
+    }
 
 	ret = pthread_create(&tid_image_handler,NULL,thread_image_handler,NULL);
     if(0 != ret)

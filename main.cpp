@@ -27,13 +27,13 @@ using namespace cv;
 int imageHandler(struct ImageUnit *image)
 {
     int ret = 0;
-    struct timeval tv[2];
+/*     struct timeval tv[2];
     char image_name[64] = {0};
     long long int time_stamp = 0;
     FILE *fp;
     char time_stamp_buf[64] = {0};
 
-    fp = fopen("/home/szp/work/images/0_time_stamp.txt", "a+");
+    fp = fopen("/home/szp/work/cam0/time_stamp.txt", "a+");
     if(fp == NULL)
     {
         fprintf(stderr, "%s: Could not open time_stamp file\n",__func__);
@@ -42,7 +42,7 @@ int imageHandler(struct ImageUnit *image)
 
     time_stamp = (long long int)(image->time_stamp->time_stamp_local * 1000000000.0);
 
-    snprintf(image_name,63,"/home/szp/work/images/%lld.jpg",time_stamp);
+    snprintf(image_name,63,"/home/szp/work/cam0/data/%lld.jpg",time_stamp);
 
     snprintf(time_stamp_buf,63,"%lld\n",time_stamp);
 
@@ -50,14 +50,28 @@ int imageHandler(struct ImageUnit *image)
 
     fclose(fp);
 
+
+    memset(time_stamp_buf,0,64);
+    fp = fopen("/home/szp/work/cam0/data.csv", "a+");
+    if(fp == NULL)
+    {
+        fprintf(stderr, "%s: Could not open time_stamp file\n",__func__);
+		return -1;
+    }
+
+    snprintf(time_stamp_buf,63,"%lld,%lld.jpg\n",time_stamp,time_stamp);
+
+    fwrite(time_stamp_buf, strlen(time_stamp_buf) , 1, fp);
+
+    fclose(fp);
+
     gettimeofday(&tv[0],NULL);
 
-
-    ret = imageBufCompressToJpeg(image_name,50,image->image,1,1);
+    ret = imageBufCompressToJpeg(image_name,80,image->image,1,1);
     if(ret != 0)
     {
         fprintf(stderr, "%s: compress image buf to jpeg picture failed\n",__func__);
-    }
+    } */
 
     Mat img(image->image->height,image->image->width,CV_8UC1);
     convert_UYVY_To_GRAY((unsigned char *)image->image->image,
@@ -66,11 +80,11 @@ int imageHandler(struct ImageUnit *image)
 						 image->image->height);
     imshow("Capture", img);
 	waitKey(1);
-
+/*
 
     gettimeofday(&tv[1],NULL);
 
-    fprintf(stderr, "save jpg: %ldms\n",(tv[1].tv_sec * 1000 + tv[1].tv_usec / 1000) - (tv[0].tv_sec * 1000 + tv[0].tv_usec / 1000));
+    fprintf(stderr, "save jpg: %ldms\n",(tv[1].tv_sec * 1000 + tv[1].tv_usec / 1000) - (tv[0].tv_sec * 1000 + tv[0].tv_usec / 1000)); */
 
 
     printf("\r\n");
@@ -92,7 +106,7 @@ int imuAds16505Handler(struct SyncImuData *imuAds16505)
     char imu_data[128] = {0};
     long long int time_stamp = 0;
 
-    fp = fopen("/home/szp/work/imudatas/imu_data.txt", "a+");
+    fp = fopen("/home/szp/work/imu0/data.csv", "a+");
     if(fp == NULL)
     {
         fprintf(stderr, "%s: Could not open imu_data file\n",__func__);
@@ -101,14 +115,14 @@ int imuAds16505Handler(struct SyncImuData *imuAds16505)
 
     time_stamp = (long long int)(imuAds16505->time_stamp_local * 1000000000.0);
 
-    snprintf(imu_data,127,"%lld,%d,%d,%d,%d,%d,%d\n",
+    snprintf(imu_data,127,"%lld,%f,%f,%f,%f,%f,%f\n",
              time_stamp,
-             imuAds16505->gx,
-             imuAds16505->gy,
-             imuAds16505->gz,
-             imuAds16505->ax,
-             imuAds16505->ay,
-             imuAds16505->az);
+             (double)imuAds16505->gx * 3.814697265625000e-07 * 3.1415926f / 180.0f,
+             (double)imuAds16505->gy * 3.814697265625000e-07 * 3.1415926f / 180.0f,
+             (double)imuAds16505->gz * 3.814697265625000e-07 * 3.1415926f / 180.0f,
+             (double)imuAds16505->ax * 3.7384033203125e-08,
+             (double)imuAds16505->ay * 3.7384033203125e-08,
+             (double)imuAds16505->az * 3.7384033203125e-08);
 
     fwrite(imu_data, strlen(imu_data) , 1, fp);
 
@@ -120,6 +134,37 @@ int imuAds16505Handler(struct SyncImuData *imuAds16505)
 int main(int argc, char **argv)
 {
     int ret = 0;
+    FILE *fp;
+    char temp_data[150] = {0};
+
+    fp = fopen("/home/szp/work/imu0/data.csv", "a+");
+    if(fp == NULL)
+    {
+        fprintf(stderr, "%s: Could not open imu_data file\n",__func__);
+		return -1;
+    }
+
+    snprintf(temp_data,149,"#timestamp [ns],w_RS_S_x [rad s^-1],w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],a_RS_S_z [m s^-2]\n");
+
+    fwrite(temp_data, strlen(temp_data) , 1, fp);
+
+    fclose(fp);
+
+
+    memset(temp_data,0,150);
+    fp = fopen("/home/szp/work/cam0/data.csv", "a+");
+    if(fp == NULL)
+    {
+        fprintf(stderr, "%s: Could not open time_stamp file\n",__func__);
+		return -1;
+    }
+
+    snprintf(temp_data,149,"#timestamp [ns],filename\n");
+
+    fwrite(temp_data, strlen(temp_data) , 1, fp);
+
+    fclose(fp);
+
 
     monocular_sdk_init(argc, argv);
 

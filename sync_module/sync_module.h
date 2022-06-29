@@ -2,7 +2,7 @@
 #define __SYNC_MODULE_H
 
 
-#define FPGA_CLOCK_HZ           20000000
+#define FPGA_CLOCK_HZ           1000000
 #define MAX_SYNC_BUF_LEN        1024
 
 #define POS_LOCAL_TIME_STAMP    0
