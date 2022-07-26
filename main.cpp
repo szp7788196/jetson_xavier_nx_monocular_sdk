@@ -27,7 +27,7 @@ using namespace cv;
 int imageHandler(struct ImageUnit *image)
 {
     int ret = 0;
-/*     struct timeval tv[2];
+    struct timeval tv[2];
     char image_name[64] = {0};
     long long int time_stamp = 0;
     FILE *fp;
@@ -67,7 +67,7 @@ int imageHandler(struct ImageUnit *image)
 
     gettimeofday(&tv[0],NULL);
 
-    ret = imageBufCompressToJpeg(image_name,80,image->image,1,1);
+/*     ret = imageBufCompressToJpeg(image_name,100,image->image,1,1);
     if(ret != 0)
     {
         fprintf(stderr, "%s: compress image buf to jpeg picture failed\n",__func__);
@@ -78,13 +78,13 @@ int imageHandler(struct ImageUnit *image)
                          img.data,
 						 image->image->width,
 						 image->image->height);
+    imwrite(image_name, img);
     imshow("Capture", img);
 	waitKey(1);
-/*
 
     gettimeofday(&tv[1],NULL);
 
-    fprintf(stderr, "save jpg: %ldms\n",(tv[1].tv_sec * 1000 + tv[1].tv_usec / 1000) - (tv[0].tv_sec * 1000 + tv[0].tv_usec / 1000)); */
+    fprintf(stderr, "save jpg: %ldms\n",(tv[1].tv_sec * 1000 + tv[1].tv_usec / 1000) - (tv[0].tv_sec * 1000 + tv[0].tv_usec / 1000));
 
 
     printf("\r\n");
