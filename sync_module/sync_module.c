@@ -142,8 +142,6 @@ static void *thread_serial_recv(void *arg)
                                     }
                                     else
                                     {
-                                        imuAdis16505HeapPut(sync_imu_data);
-
                                         ret = xQueueSend((key_t)KEY_IMU_ADS16505_HANDLER_MSG,sync_imu_data,MAX_QUEUE_MSG_NUM);
                                         if(ret == -1)
                                         {
@@ -532,7 +530,6 @@ void *thread_sync_module(void *arg)
         goto THREAD_EXIT;
     }
 
-    allocateImuAdis16505Heap(args->sync_heap_depth);
     allocateSyncCamTimeStampHeap(args->ts_heap_depth);
 
     ret = pthread_create(&tid_serial_recv,NULL,thread_serial_recv,&serialSync);

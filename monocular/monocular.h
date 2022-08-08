@@ -13,27 +13,32 @@
 #include "serial.h"
 
 
-#define MAX_QUEUE_MSG_NUM				100
+#define HARDWARE_VERSION                        101
+#define SOFTWARE_VERSION                        101
 
-#define KEY_UB482_GPGGA_MSG         	1000
-#define KEY_NTRIP_RTCM_MSG              1001
-#define KEY_FRAME_RATE_MSG          	1002
-#define KEY_UB482_TIME_STAMP_MSG    	1003
-#define KEY_SYNC_CAM_TIME_STAMP_MSG    	1004
-#define KEY_CAMERA_RESET_MSG			1005
-#define KEY_SYNC_MODULE_RESET_MSG		1006
-#define KEY_IMAGE_HANDLER_MSG			1007
-#define KEY_IMU_ADS16505_HANDLER_MSG	1008
-#define KEY_IMU_MPU9250_HANDLER_MSG		1009
-#define KEY_GNSS_UB482_HANDLER_MSG		1010
-#define KEY_SYNC_1HZ_SUCCESS_MSG		1011
-#define KEY_CAMERA_READY_MSG			1012
+#define MAX_QUEUE_MSG_NUM						100
 
-#define NTRIP_RTCM_MSG_MAX_LEN          1024
+#define KEY_UB482_GPGGA_MSG         			1000
+#define KEY_NTRIP_RTCM_MSG              		1001
+#define KEY_FRAME_RATE_MSG          			1002
+#define KEY_UB482_TIME_STAMP_MSG    			1003
+#define KEY_SYNC_CAM_TIME_STAMP_MSG    			1004
+#define KEY_CAMERA_RESET_MSG					1005
+#define KEY_SYNC_MODULE_RESET_MSG				1006
+#define KEY_IMAGE_HANDLER_MSG					1007
+#define KEY_IMU_ADS16505_HANDLER_MSG			1008
+#define KEY_IMU_MPU9250_HANDLER_MSG				1009
+#define KEY_GNSS_UB482_HANDLER_MSG				1010
+#define KEY_SYNC_1HZ_SUCCESS_MSG				1011
+#define KEY_CAMERA_READY_MSG					1012
+#define KEY_EPHEMERIS_MSG						1013
+#define KEY_RANGEH_MSG							1014
 
-#define NOT_SYNC_THRESHOLD      		30
+#define NTRIP_RTCM_MSG_MAX_LEN          		1024
 
-#define RTCM3PREAMB 					0xD3
+#define NOT_SYNC_THRESHOLD      				30
+
+#define RTCM3PREAMB 							0xD3
 
 
 #define CAP(val, min, max)\
@@ -147,6 +152,8 @@ typedef int (*ImageHandler)(struct ImageUnit *);
 typedef int (*ImuAds16505Handler)(struct SyncImuData *);
 typedef int (*ImuMpu9250Handler)(struct Mpu9250SampleData *);
 typedef int (*GnssUb482Handler)(struct Ub482GnssData *);
+typedef int (*EphemerisUb482Handler)(struct Ephemeris *);
+typedef int (*RangehUb482Handler)(struct Rangeh *);
 
 struct DataHandler
 {
@@ -154,6 +161,8 @@ struct DataHandler
 	ImuAds16505Handler imu_ads16505_handler;
 	ImuMpu9250Handler imu_mpu9250_handler;
 	GnssUb482Handler gnss_ub482_handler;
+	EphemerisUb482Handler ephemeris_ub482_handler;
+	RangehUb482Handler rangeh_ub482_handler;
 };
 
 struct BITMAPFILEHEADER
@@ -297,16 +306,10 @@ extern struct ImageBuffer imageBuffer;
 extern struct ImageUnit imageUnit;
 extern struct ImageHeap imageHeap;
 extern struct ImageUnitHeap imageUnitHeap;
-extern struct ImuAdis16505Heap imuAdis16505Heap;
-extern struct ImuMpu9250Heap imuMpu9250Heap;
-extern struct GnssUb482Heap gnssUb482Heap;
 extern struct SyncCamTimeStampHeap syncCamTimeStampHeap;
 
 extern pthread_mutex_t mutexImageHeap;
 extern pthread_mutex_t mutexImageUnitHeap;
-extern pthread_mutex_t mutexImuAdis16505Heap;
-extern pthread_mutex_t mutexImuMpu9250Heap;
-extern pthread_mutex_t mutexGnssUb482Heap;
 extern pthread_mutex_t mutexSyncCamTimeStampHeap;
 extern sem_t sem_t_ImageHeap;
 extern sem_t sem_t_ImageUnitHeap;
@@ -358,23 +361,10 @@ void freeImageHeap(void);
 int allocateImageHeap(unsigned short depth,unsigned int image_size);
 void freeImageUnitHeap(void);
 int allocateImageUnitHeap(unsigned short depth,unsigned int image_size);
-void freeImuAdis16505Heap(void);
-int allocateImuAdis16505Heap(unsigned short depth);
-void freeImuMpu9250Heap(void);
-int allocateImuMpu9250Heap(unsigned short depth);
-void freeGnssUb482Heap(void);
-int allocateGnssUb482Heap(unsigned short depth);
-int gnssUb482HeapGet(struct Ub482GnssData *data);
 int imageHeapPut(struct ImageBuffer *data);
 int imageHeapGet(struct ImageBuffer *data);
 int imageUnitHeapPut(struct ImageBuffer *image, struct SyncCamTimeStamp *time_stamp);
 int imageUnitHeapGet(struct ImageUnit *data);
-int imuAdis16505HeapPut(struct SyncImuData *data);
-int imuAdis16505HeapGet(struct SyncImuData *data);
-int imuMpu9250HeapPut(struct Mpu9250SampleData *data);
-int imuMpu9250HeapGet(struct Mpu9250SampleData *data);
-int gnssUb482HeapPut(struct Ub482GnssData *data);
-int gnssUb482HeapGet(struct Ub482GnssData *data);
 int syncCamTimeStampHeapPut(struct SyncCamTimeStamp *data);
 int syncCamTimeStampHeapGet(struct SyncCamTimeStamp *data);
 void freeSyncCamTimeStampHeap(void);
@@ -402,6 +392,8 @@ int monocular_sdk_init(int argc, char **argv);
 void monocular_sdk_register_handler(ImageHandler image_handler,
                                     ImuAds16505Handler imu_ads16505_handler,
 									ImuMpu9250Handler imu_mpu9250_handler,
-									GnssUb482Handler gnss_ub482_handler);
+									GnssUb482Handler gnss_ub482_handler,
+									EphemerisUb482Handler ephemeris_ub482_handler,
+									RangehUb482Handler rangeh_ub482_handler);
 
 #endif

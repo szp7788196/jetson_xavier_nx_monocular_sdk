@@ -51,10 +51,7 @@ struct CmdArgs
   char *mipi_cam_user_conf_file;       //mipi相机用户配置文件
 
   unsigned char camera_module;         //相机型号,0:UI3420; 1:CSSC132
-  unsigned short imu_heap_depth;       //imu堆深度
-  unsigned short sync_heap_depth;      //同步模块imu堆深度
   unsigned short image_heap_depth;     //图像堆深度
-  unsigned short gnss_heap_depth;      //gnss数据堆深度
   unsigned short ts_heap_depth;        //同步模块曝光时间戳堆深度
 };
 

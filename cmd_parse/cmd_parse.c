@@ -3,11 +3,12 @@
 #include <stdio.h>
 #include <string.h>
 #include "cmd_parse.h"
+#include "monocular.h"
 
 struct CmdArgs cmdArgs;
 
 #define LONG_OPT(a) a
-#define ARGOPT "ha:b:c:d:e:f:g:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:J:K:L:M:N:O:P:Q:R:"
+#define ARGOPT "ha:b:c:d:e:f:g:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:J:K:L:M:N:O:P"
 
 static struct option opts[] =
 {
@@ -50,11 +51,9 @@ static struct option opts[] =
     { "usb_cam_user",       required_argument, 0, 'K'},
     { "mipi_cam_user",      required_argument, 0, 'L'},
     { "camera_module",      required_argument, 0, 'M'},
-    { "imu_heap_depth",     required_argument, 0, 'N'},
-    { "sync_heap_depth",    required_argument, 0, 'O'},
-    { "image_heap_depth",   required_argument, 0, 'P'},
-    { "gnss_heap_depth",    required_argument, 0, 'Q'},
-    { "ts_heap_depth",      required_argument, 0, 'R'},
+    { "image_heap_depth",   required_argument, 0, 'N'},
+    { "ts_heap_depth",      required_argument, 0, 'O'},
+    { "version",            no_argument,       0, 'P'},
     { 0,                    0,                 0,  0 }
 };
 
@@ -64,6 +63,8 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
     int getoptr;
     int i = 0;
     int help = 0;
+    unsigned short ver_h = 0;
+    unsigned short ver_l = 0;
 
     args->server                    = "rtk.ntrip.qxwz.com";
     args->port                      = "8002";
@@ -77,7 +78,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
     args->parity1                   = SPAPARITY_NONE;
     args->protocol1                 = SPAPROTOCOL_NONE;
     args->serial2                   = "/dev/ttyTHS0";
-    args->baudrate2                 = SPABAUD_115200;
+    args->baudrate2                 = SPABAUD_230400;
     args->databits2                 = SPADATABITS_8;
     args->stopbits2                 = SPASTOPBITS_1;
     args->parity2                   = SPAPARITY_NONE;
@@ -103,10 +104,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
     args->usb_cam_user_conf_file    = "./config/ids_user_config.ini";
     args->mipi_cam_user_conf_file   = "./config/cssc132_user_config.ini";
     args->camera_module             = 1;
-    args->imu_heap_depth            = 8;
-    args->sync_heap_depth           = 8;
     args->image_heap_depth          = 8;
-    args->gnss_heap_depth           = 8;
     args->ts_heap_depth             = 8;
 
     help = 0;
@@ -691,7 +689,7 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 }
                 else
                 {
-                    args->imu_heap_depth = i;
+                    args->image_heap_depth = i;
                 }
             break;
 
@@ -704,47 +702,19 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
                 }
                 else
                 {
-                    args->sync_heap_depth = i;
+                    args->ts_heap_depth = i;
                 }
             break;
 
             case 'P':
-                i = 0;
-                i = strtol(optarg, 0, 10);
-                if(i < 0 || i > 256)
-                {
-                    res = 0;
-                }
-                else
-                {
-                    args->image_heap_depth = i;
-                }
-            break;
+                ver_h = HARDWARE_VERSION / 100;
+                ver_l = HARDWARE_VERSION % 100;
+                fprintf(stdout, "hardware version: %02d.%02d\n",ver_h,ver_l);
+                ver_h = SOFTWARE_VERSION / 100;
+                ver_l = SOFTWARE_VERSION % 100;
+                fprintf(stdout, "software version: %02d.%02d\n",ver_h,ver_l);
 
-            case 'Q':
-                i = 0;
-                i = strtol(optarg, 0, 10);
-                if(i < 0 || i > 256)
-                {
-                    res = 0;
-                }
-                else
-                {
-                    args->gnss_heap_depth = i;
-                }
-            break;
-
-            case 'R':
-                i = 0;
-                i = strtol(optarg, 0, 10);
-                if(i < 0 || i > 256)
-                {
-                    res = 0;
-                }
-                else
-                {
-                    args->ts_heap_depth = i;
-                }
+                exit(1);
             break;
 
             case 'h':
@@ -805,10 +775,9 @@ int cmdParse(int argc, char **argv, struct CmdArgs *args)
         "| -K " LONG_OPT("--usb_cam_user     ") "usb  camera user    config file name;                               |\n"
         "| -L " LONG_OPT("--mipi_cam_user    ") "mipi camera default config file name;                               |\n"
         "| -M " LONG_OPT("--camera_module    ") "0:usb camera UI3420; 1:csi mipi camera CSSC132;                     |\n"
-        "| -N " LONG_OPT("--imu_heap_depth   ") "imu mpu9250 data heap depth,should be less than 256;                |\n"
-        "| -O " LONG_OPT("--sync_heap_depth  ") "imu adis16505 data heap depth,should be less than 256;              |\n"
-        "| -P " LONG_OPT("--image_heap_depth ") "image data heap depth,should be less than 256;                      |\n"
-        "| -R " LONG_OPT("--ts_heap_depth    ") "camera timestamp heap depth,should be less than 256;                |\n"
+        "| -N " LONG_OPT("--image_heap_depth ") "image data heap depth,should be less than 256;                      |\n"
+        "| -O " LONG_OPT("--ts_heap_depth    ") "camera timestamp heap depth,should be less than 256;                |\n"
+        "| -P " LONG_OPT("--version          ") "view hardware and software version number;                          |\n"
         "|===========================================================================================|\n"
         );
 

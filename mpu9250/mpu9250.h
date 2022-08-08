@@ -27,7 +27,6 @@ struct Mpu9250SampleData
     short magne_x;
     short magne_y;
     short magne_z;
-
 };
 
 struct Mpu9250Config
@@ -36,7 +35,6 @@ struct Mpu9250Config
     int accel_range;        //0,±2g;1,±4g;2,±8g;3,±16g
     int sample_rate;        //4~1000(Hz)
     int read_mode;          //0,被动读取;1,中断读取;2,定时器读取;1和2支持mmap;
-
 };
 
 

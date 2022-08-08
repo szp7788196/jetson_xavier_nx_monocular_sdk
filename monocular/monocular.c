@@ -27,13 +27,15 @@ pthread_mutex_t mutexImageUnitHeap;
 pthread_mutex_t mutexImuAdis16505Heap;
 pthread_mutex_t mutexImuMpu9250Heap;
 pthread_mutex_t mutexGnssUb482Heap;
+pthread_mutex_t mutexEphemerisUb482Heap;
+pthread_mutex_t mutexRangehUb482Heap;
 pthread_mutex_t mutexSyncCamTimeStampHeap;
 sem_t sem_t_ImageHeap;
 sem_t sem_t_ImageUnitHeap;
 sem_t sem_t_SyncCamTimeStampHeap;
 
 
-struct DataHandler dataHandler = {NULL,NULL,NULL,NULL};
+struct DataHandler dataHandler = {NULL,NULL,NULL,NULL,NULL,NULL};
 
 unsigned int CRC32(unsigned char *buf, unsigned int size)
 {
@@ -83,6 +85,7 @@ static unsigned int getbitu(const unsigned char *buff, int pos, int len)
 
 	return bits;
 }
+
 static unsigned int rtk_crc24q(const unsigned char *buff, int len)
 {
 	unsigned int crc = 0;
@@ -904,195 +907,6 @@ int allocateImageUnitHeap(unsigned short depth,unsigned int image_size)
 	return 0;
 }
 
-void freeImuAdis16505Heap(void)
-{
-	int i = 0;
-
-	if(imuAdis16505Heap.heap != NULL && imuAdis16505Heap.depth != 0)
-	{
-		for(i = 0; i < imuAdis16505Heap.depth; i ++)
-		{
-			if(imuAdis16505Heap.heap[i] != NULL)
-			{
-				free(imuAdis16505Heap.heap[i]);
-				imuAdis16505Heap.heap[i] = NULL;
-			}
-		}
-
-		imuAdis16505Heap.heap = NULL;
-		imuAdis16505Heap.cnt = 0;
-		imuAdis16505Heap.depth = 0;
-        imuAdis16505Heap.put_ptr = 0;
-        imuAdis16505Heap.get_ptr = 0;
-	}
-}
-
-int allocateImuAdis16505Heap(unsigned short depth)
-{
-	int i = 0;
-
-	if(imuAdis16505Heap.heap != NULL)
-	{
-		fprintf(stderr, "%s: imuAdis16505Heap.heap does not null\n",__func__);
-		return -1;
-	}
-
-	if(depth & (depth - 1))		//判断depth是否为2的N次幂
-	{
-		fprintf(stderr, "%s: depth dose not N-th power of 2\n",__func__);
-		return -1;
-	}
-
-	imuAdis16505Heap.depth = depth;
-
-	imuAdis16505Heap.heap = calloc(imuAdis16505Heap.depth, sizeof(struct SyncImuData));
-
-	if(imuAdis16505Heap.heap == NULL)
-	{
-		fprintf(stderr, "%s: calloc imuAdis16505Heap.heap failed\n",__func__);
-		return -1;
-	}
-
-	for(i = 0; i < imuAdis16505Heap.depth; i ++)
-	{
-		imuAdis16505Heap.heap[i] = NULL;
-		imuAdis16505Heap.heap[i] = (struct SyncImuData *)malloc(sizeof(struct SyncImuData));
-		if(imuAdis16505Heap.heap[i] == NULL)
-		{
-			fprintf(stderr, "%s: malloc imuAdis16505Heap.heap[%d] failed\n",__func__,i);
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
-void freeImuMpu9250Heap(void)
-{
-	int i = 0;
-
-	if(imuMpu9250Heap.heap != NULL && imuMpu9250Heap.depth != 0)
-	{
-		for(i = 0; i < imuMpu9250Heap.depth; i ++)
-		{
-			if(imuMpu9250Heap.heap[i] != NULL)
-			{
-				free(imuMpu9250Heap.heap[i]);
-				imuMpu9250Heap.heap[i] = NULL;
-			}
-		}
-
-		imuMpu9250Heap.heap = NULL;
-		imuMpu9250Heap.cnt = 0;
-		imuMpu9250Heap.depth = 0;
-        imuMpu9250Heap.put_ptr = 0;
-        imuMpu9250Heap.get_ptr = 0;
-	}
-}
-
-int allocateImuMpu9250Heap(unsigned short depth)
-{
-	int i = 0;
-
-	if(imuMpu9250Heap.heap != NULL)
-	{
-		fprintf(stderr, "%s: imuMpu9250Heap.heap does not null\n",__func__);
-		return -1;
-	}
-
-	if(depth & (depth - 1))		//判断depth是否为2的N次幂
-	{
-		fprintf(stderr, "%s: depth dose not N-th power of 2\n",__func__);
-		return -1;
-	}
-
-	imuMpu9250Heap.depth = depth;
-
-	imuMpu9250Heap.heap = calloc(imuMpu9250Heap.depth, sizeof(struct Mpu9250SampleData));
-
-	if(imuMpu9250Heap.heap == NULL)
-	{
-		fprintf(stderr, "%s: calloc imuMpu9250Heap.heap failed\n",__func__);
-		return -1;
-	}
-
-	for(i = 0; i < depth; i ++)
-	{
-		imuMpu9250Heap.heap[i] = NULL;
-		imuMpu9250Heap.heap[i] = (struct Mpu9250SampleData *)malloc(sizeof(struct Mpu9250SampleData));
-		if(imuMpu9250Heap.heap[i] == NULL)
-		{
-			fprintf(stderr, "%s: malloc imuMpu9250Heap.heap[%d] failed\n",__func__,i);
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
-void freeGnssUb482Heap(void)
-{
-	int i = 0;
-
-	if(gnssUb482Heap.heap != NULL && gnssUb482Heap.depth != 0)
-	{
-		for(i = 0; i < gnssUb482Heap.depth; i ++)
-		{
-			if(gnssUb482Heap.heap[i] != NULL)
-			{
-				free(gnssUb482Heap.heap[i]);
-				gnssUb482Heap.heap[i] = NULL;
-			}
-		}
-
-		gnssUb482Heap.heap = NULL;
-		gnssUb482Heap.cnt = 0;
-		gnssUb482Heap.depth = 0;
-        gnssUb482Heap.put_ptr = 0;
-        gnssUb482Heap.get_ptr = 0;
-	}
-}
-
-int allocateGnssUb482Heap(unsigned short depth)
-{
-	int i = 0;
-
-	if(gnssUb482Heap.heap != NULL)
-	{
-		fprintf(stderr, "%s: gnssUb482Heap.heap does not null\n",__func__);
-		return -1;
-	}
-
-	if(depth & (depth - 1))		//判断depth是否为2的N次幂
-	{
-		fprintf(stderr, "%s: depth dose not N-th power of 2\n",__func__);
-		return -1;
-	}
-
-	gnssUb482Heap.depth = depth;
-
-	gnssUb482Heap.heap = calloc(gnssUb482Heap.depth, sizeof(struct Ub482GnssData));
-
-	if(gnssUb482Heap.heap == NULL)
-	{
-		fprintf(stderr, "%s: calloc gnssUb482Heap.heap failed\n",__func__);
-		return -1;
-	}
-
-	for(i = 0; i < depth; i ++)
-	{
-		gnssUb482Heap.heap[i] = NULL;
-		gnssUb482Heap.heap[i] = (struct Ub482GnssData *)malloc(sizeof(struct Ub482GnssData));
-		if(gnssUb482Heap.heap[i] == NULL)
-		{
-			fprintf(stderr, "%s: malloc gnssUb482Heap.heap[%d] failed\n",__func__,i);
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
 void freeSyncCamTimeStampHeap(void)
 {
 	int i = 0;
@@ -1276,174 +1090,6 @@ int imageUnitHeapGet(struct ImageUnit *data)
 	}
 
 	pthread_mutex_unlock(&mutexImageUnitHeap);
-
-	return 0;
-}
-
-int imuAdis16505HeapPut(struct SyncImuData *data)
-{
-	if(data == NULL)
-	{
-		fprintf(stderr, "%s: data is null\n",__func__);
-		return -1;
-	}
-
-	pthread_mutex_lock(&mutexImuAdis16505Heap);
-
-	memcpy(imuAdis16505Heap.heap[imuAdis16505Heap.put_ptr],data,sizeof(struct SyncImuData));
-
-	imuAdis16505Heap.put_ptr = (imuAdis16505Heap.put_ptr + 1) % imuAdis16505Heap.depth;
-
-	imuAdis16505Heap.cnt += 1;
-	if(imuAdis16505Heap.cnt >= imuAdis16505Heap.depth)
-	{
-		imuAdis16505Heap.cnt = imuAdis16505Heap.depth;
-
-		imuAdis16505Heap.get_ptr = imuAdis16505Heap.put_ptr;
-	}
-
-	pthread_mutex_unlock(&mutexImuAdis16505Heap);
-
-	return 0;
-}
-
-int imuAdis16505HeapGet(struct SyncImuData *data)
-{
-	if(data == NULL)
-	{
-		fprintf(stderr, "%s: data is null\n",__func__);
-		return -1;
-	}
-
-	if(imuAdis16505Heap.cnt == 0)
-	{
-		return -1;
-	}
-
-	pthread_mutex_lock(&mutexImuAdis16505Heap);
-
-	if(imuAdis16505Heap.cnt > 0)
-	{
-		memcpy(data,imuAdis16505Heap.heap[imuAdis16505Heap.get_ptr],sizeof(struct SyncImuData));
-
-		imuAdis16505Heap.get_ptr = (imuAdis16505Heap.get_ptr + 1) % imuAdis16505Heap.depth;
-
-		imuAdis16505Heap.cnt -= 1;
-	}
-
-	pthread_mutex_unlock(&mutexImuAdis16505Heap);
-
-	return 0;
-}
-
-int imuMpu9250HeapPut(struct Mpu9250SampleData *data)
-{
-	if(data == NULL)
-	{
-		fprintf(stderr, "%s: data is null\n",__func__);
-		return -1;
-	}
-
-	pthread_mutex_lock(&mutexImuMpu9250Heap);
-
-	memcpy(imuMpu9250Heap.heap[imuMpu9250Heap.put_ptr],data,sizeof(struct Mpu9250SampleData));
-
-	imuMpu9250Heap.put_ptr = (imuMpu9250Heap.put_ptr + 1) % imuMpu9250Heap.depth;
-
-	imuMpu9250Heap.cnt += 1;
-	if(imuMpu9250Heap.cnt >= imuMpu9250Heap.depth)
-	{
-		imuMpu9250Heap.cnt = imuMpu9250Heap.depth;
-
-		imuMpu9250Heap.get_ptr = imuMpu9250Heap.put_ptr;
-	}
-	pthread_mutex_unlock(&mutexImuMpu9250Heap);
-
-	return 0;
-}
-
-int imuMpu9250HeapGet(struct Mpu9250SampleData *data)
-{
-	if(data == NULL)
-	{
-		fprintf(stderr, "%s: data is null\n",__func__);
-		return -1;
-	}
-
-	if(imuMpu9250Heap.cnt == 0)
-	{
-		return -1;
-	}
-
-	pthread_mutex_lock(&mutexImuMpu9250Heap);
-
-	if(imuMpu9250Heap.cnt > 0)
-	{
-		memcpy(data,imuMpu9250Heap.heap[imuMpu9250Heap.get_ptr],sizeof(struct Mpu9250SampleData));
-
-		imuMpu9250Heap.get_ptr = (imuMpu9250Heap.get_ptr + 1) % imuMpu9250Heap.depth;
-
-		imuMpu9250Heap.cnt -= 1;
-	}
-
-	pthread_mutex_unlock(&mutexImuMpu9250Heap);
-
-	return 0;
-}
-
-int gnssUb482HeapPut(struct Ub482GnssData *data)
-{
-	int ret = 0;
-
-	if(data == NULL)
-	{
-		fprintf(stderr, "%s: data is null\n",__func__);
-		return -1;
-	}
-
-	pthread_mutex_lock(&mutexGnssUb482Heap);
-
-	memcpy(gnssUb482Heap.heap[gnssUb482Heap.put_ptr],data,sizeof(struct Ub482GnssData));
-
-	gnssUb482Heap.put_ptr = (gnssUb482Heap.put_ptr + 1) % gnssUb482Heap.depth;
-
-	gnssUb482Heap.cnt += 1;
-	if(gnssUb482Heap.cnt >= gnssUb482Heap.depth)
-	{
-		gnssUb482Heap.cnt = gnssUb482Heap.depth;
-
-		gnssUb482Heap.get_ptr = gnssUb482Heap.put_ptr;
-	}
-	pthread_mutex_unlock(&mutexGnssUb482Heap);
-
-	return 0;
-}
-
-int gnssUb482HeapGet(struct Ub482GnssData *data)
-{
-	if(data == NULL)
-	{
-		fprintf(stderr, "%s: data is null\n",__func__);
-		return -1;
-	}
-
-	if(gnssUb482Heap.cnt == 0)
-	{
-		return -1;
-	}
-
-	pthread_mutex_lock(&mutexGnssUb482Heap);
-
-	if(gnssUb482Heap.cnt > 0)
-	{
-		memcpy(data,gnssUb482Heap.heap[gnssUb482Heap.get_ptr],sizeof(struct Ub482GnssData));
-
-		gnssUb482Heap.get_ptr = (gnssUb482Heap.get_ptr + 1) % gnssUb482Heap.depth;
-
-		gnssUb482Heap.cnt -= 1;
-	}
-
-	pthread_mutex_unlock(&mutexGnssUb482Heap);
 
 	return 0;
 }
@@ -2099,9 +1745,6 @@ static void syncAndMutexCreate(void)
 
 	pthread_mutex_init(&mutexImageHeap, NULL);
     pthread_mutex_init(&mutexImageUnitHeap, NULL);
-    pthread_mutex_init(&mutexImuAdis16505Heap, NULL);
-    pthread_mutex_init(&mutexImuMpu9250Heap, NULL);
-    pthread_mutex_init(&mutexGnssUb482Heap, NULL);
 	pthread_mutex_init(&mutexSyncCamTimeStampHeap, NULL);
 
 	ret = sem_init(&sem_t_ImageHeap, 0, 1);
@@ -2140,7 +1783,8 @@ static int pthreadCreate(void *args)
 	static pthread_t tid_imu_ads16505_handler = 0;
 	static pthread_t tid_imu_mpu9250_handler = 0;
 	static pthread_t tid_gnss_ub482_handler = 0;
-
+	static pthread_t tid_ephemeris_ub482_handler = 0;
+	static pthread_t tid_rangeh_ub482_handler = 0;
 
     ret = pthread_create(&tid_ub482,NULL,thread_ub482,&cmdArgs);
     if(0 != ret)
@@ -2219,6 +1863,18 @@ static int pthreadCreate(void *args)
         fprintf(stderr, "%s: create thread_gnss_ub482_handler failed\n",__func__);
     }
 
+	ret = pthread_create(&tid_ephemeris_ub482_handler,NULL,thread_ephemeris_ub482_handler,NULL);
+    if(0 != ret)
+    {
+        fprintf(stderr, "%s: create thread_ephemeris_ub482_handler failed\n",__func__);
+    }
+
+	ret = pthread_create(&tid_rangeh_ub482_handler,NULL,thread_rangeh_ub482_handler,NULL);
+    if(0 != ret)
+    {
+        fprintf(stderr, "%s: create thread_rangeh_ub482_handler failed\n",__func__);
+    }
+
     return ret;
 }
 
@@ -2243,10 +1899,14 @@ int monocular_sdk_init(int argc, char **argv)
 void monocular_sdk_register_handler(ImageHandler image_handler,
                                     ImuAds16505Handler imu_ads16505_handler,
 									ImuMpu9250Handler imu_mpu9250_handler,
-									GnssUb482Handler gnss_ub482_handler)
+									GnssUb482Handler gnss_ub482_handler,
+									EphemerisUb482Handler ephemeris_ub482_handler,
+									RangehUb482Handler rangeh_ub482_handler)
 {
-	dataHandler.image_handler        = image_handler;
-	dataHandler.imu_ads16505_handler = imu_ads16505_handler;
-	dataHandler.imu_mpu9250_handler  = imu_mpu9250_handler;
-	dataHandler.gnss_ub482_handler   = gnss_ub482_handler;
+	dataHandler.image_handler        	= image_handler;
+	dataHandler.imu_ads16505_handler 	= imu_ads16505_handler;
+	dataHandler.imu_mpu9250_handler  	= imu_mpu9250_handler;
+	dataHandler.gnss_ub482_handler   	= gnss_ub482_handler;
+	dataHandler.ephemeris_ub482_handler	= ephemeris_ub482_handler;
+	dataHandler.rangeh_ub482_handler   	= rangeh_ub482_handler;
 }

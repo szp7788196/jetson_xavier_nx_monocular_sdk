@@ -48,10 +48,13 @@ void *thread_image_handler(void *arg)
                 {
                     fprintf(stderr, "%s: dataHandler.image_handler error\n",__func__);
                 }
-
-                freeImageUnit(&image_unit);
-                image_unit = NULL;
             }
+        }
+
+        if(image_unit != NULL)
+        {
+            freeImageUnit(&image_unit);
+            image_unit = NULL;
         }
     }
 }
@@ -72,16 +75,15 @@ void *thread_imu_ads16505_handler(void *arg)
         {
             if(dataHandler.imu_ads16505_handler != NULL)
             {
-                pthread_mutex_lock(&mutexImuAdis16505Heap);
-
                 ret = dataHandler.imu_ads16505_handler(sync_imu_data);
                 if(ret != 0)
                 {
                     fprintf(stderr, "%s: dataHandler.sync_imu_data error\n",__func__);
                 }
-
-                pthread_mutex_unlock(&mutexImuAdis16505Heap);
             }
+
+            free(sync_imu_data);
+            sync_imu_data = NULL;
         }
     }
 }
@@ -102,16 +104,15 @@ void *thread_imu_mpu9250_handler(void *arg)
         {
             if(dataHandler.imu_mpu9250_handler != NULL)
             {
-                pthread_mutex_lock(&mutexImuMpu9250Heap);
-
                 ret = dataHandler.imu_mpu9250_handler(mpu9250_sample_data);
                 if(ret != 0)
                 {
                     fprintf(stderr, "%s: dataHandler.mpu9250_sample_data error\n",__func__);
                 }
-
-                pthread_mutex_unlock(&mutexImuMpu9250Heap);
             }
+
+            free(mpu9250_sample_data);
+            mpu9250_sample_data = NULL;
         }
     }
 }
@@ -132,16 +133,108 @@ void *thread_gnss_ub482_handler(void *arg)
         {
             if(dataHandler.gnss_ub482_handler != NULL)
             {
-                pthread_mutex_lock(&mutexGnssUb482Heap);
-
                 ret = dataHandler.gnss_ub482_handler(ub482_gnss_data);
                 if(ret != 0)
                 {
                     fprintf(stderr, "%s: dataHandler.ub482_gnss_data error\n",__func__);
                 }
-
-                pthread_mutex_unlock(&mutexGnssUb482Heap);
             }
+
+            free(ub482_gnss_data);
+            ub482_gnss_data = NULL;
+        }
+    }
+}
+
+void *thread_ephemeris_ub482_handler(void *arg)
+{
+    int ret = 0;
+    struct Ephemeris *ephemeris = NULL;
+
+    while(1)
+    {
+        ret = xQueueReceive((key_t)KEY_EPHEMERIS_MSG,(void **)&ephemeris,1);
+        if(ret == -1)
+        {
+            fprintf(stderr, "%s: recv KEY_EPHEMERIS_MSG error\n",__func__);
+        }
+        else
+        {
+            if(dataHandler.ephemeris_ub482_handler != NULL)
+            {
+                ret = dataHandler.ephemeris_ub482_handler(ephemeris);
+                if(ret != 0)
+                {
+                    fprintf(stderr, "%s: dataHandler.ephemeris error\n",__func__);
+                }
+            }
+
+            switch(ephemeris->flag)
+            {
+                case 0x01:
+                    ephemeris->ephem = (struct GLOEPHEM *)ephemeris->ephem;
+                break;
+
+                case 0x02:
+                    ephemeris->ephem = (struct GPSEPHEM *)ephemeris->ephem;
+                break;
+
+                case 0x04:
+                    ephemeris->ephem = (struct BDSEPHEM *)ephemeris->ephem;
+                break;
+
+                case 0x08:
+                    ephemeris->ephem = (struct GALEPHEM *)ephemeris->ephem;
+                break;
+
+                default:
+                break;
+            }
+
+            free(ephemeris->ephem);
+            ephemeris->ephem = NULL;
+
+            free(ephemeris);
+            ephemeris = NULL;
+        }
+    }
+}
+
+void *thread_rangeh_ub482_handler(void *arg)
+{
+    int ret = 0;
+    struct Rangeh *rangeh = NULL;
+    unsigned char i = 0;
+
+    while(1)
+    {
+        ret = xQueueReceive((key_t)KEY_RANGEH_MSG,(void **)&rangeh,1);
+        if(ret == -1)
+        {
+            fprintf(stderr, "%s: recv KEY_RANGEH_MSG error\n",__func__);
+        }
+        else
+        {
+            if(dataHandler.rangeh_ub482_handler != NULL)
+            {
+                ret = dataHandler.rangeh_ub482_handler(rangeh);
+                if(ret != 0)
+                {
+                    fprintf(stderr, "%s: dataHandler.rangeh error\n",__func__);
+                }
+            }
+
+            for(i = 0; i < rangeh->satellite_num; i ++)
+            {
+                free(rangeh->data[i]);
+                rangeh->data[i] = NULL;
+            }
+
+            free(rangeh->data);
+            rangeh->data = NULL;
+
+            free(rangeh);
+            rangeh = NULL;
         }
     }
 }

@@ -15,7 +15,6 @@ static struct Serial serialGet;
 
 
 struct Ub482GnssData ub482GnssData;
-struct Ub482GnssData ub482GnssData1;
 
 static int ub482_send_config_cmd(struct Serial *sn,
                                  char* cmd,
@@ -170,6 +169,11 @@ static int ub482_config_init(enum SerialBaudrate baudrate)
     int ret4 = 0;
     int ret5 = 0;
     int ret6 = 0;
+    int ret7 = 0;
+    int ret8 = 0;
+    int ret9 = 0;
+    int ret10 = 0;
+    int ret11 = 0;
     char buf[32] = {0};
     long int rate = 115200;
 
@@ -177,14 +181,19 @@ static int ub482_config_init(enum SerialBaudrate baudrate)
 
     snprintf(buf, 32, "CONFIG COM1 %ld\r\n",rate);
 
-    ret1 = AT_SendCmd(&serialSet,buf,                             "response: OK",NULL,100,10,100);
-    ret2 = AT_SendCmd(&serialSet,"GPGGA COM1 1\r\n",              "response: OK",NULL,100,10,100);
-    ret3 = AT_SendCmd(&serialSet,"LOG COM1 BESTPOSA ONTIME 1\r\n","response: OK",NULL,100,10,100);
-    ret4 = AT_SendCmd(&serialSet,"LOG COM1 BESTVELA ONTIME 1\r\n","response: OK",NULL,100,10,100);
-    ret5 = AT_SendCmd(&serialSet,"LOG COM1 HEADINGA ONTIME 1\r\n","response: OK",NULL,100,10,100);
-    ret6 = AT_SendCmd(&serialSet,"LOG COM1 TIMEA ONTIME 1\r\n",   "response: OK",NULL,100,10,100);
+    ret1  = AT_SendCmd(&serialSet,buf,                                   "response: OK",NULL,100,10,100);
+    ret2  = AT_SendCmd(&serialSet,"GPGGA COM1 1\r\n",                    "response: OK",NULL,100,10,100);
+    ret3  = AT_SendCmd(&serialSet,"LOG COM1 BESTPOSA ONTIME 1\r\n",      "response: OK",NULL,100,10,100);
+    ret4  = AT_SendCmd(&serialSet,"LOG COM1 BESTVELA ONTIME 1\r\n",      "response: OK",NULL,100,10,100);
+    ret5  = AT_SendCmd(&serialSet,"LOG COM1 HEADINGA ONTIME 1\r\n",      "response: OK",NULL,100,10,100);
+    ret6  = AT_SendCmd(&serialSet,"LOG COM1 TIMEA ONTIME 1\r\n",         "response: OK",NULL,100,10,100);
+    ret7  = AT_SendCmd(&serialSet,"LOG COM1 RANGEA ONTIME 1\r\n",        "response: OK",NULL,100,10,100);
+    ret8  = AT_SendCmd(&serialSet,"GLOEPHEMA COM1 ONCHANGED\r\n",        "response: OK",NULL,100,10,100);
+    ret9  = AT_SendCmd(&serialSet,"GPSEPHEMERISA COM1 ONCHANGED\r\n",    "response: OK",NULL,100,10,100);
+    ret10 = AT_SendCmd(&serialSet,"BDSEPHEMA COM1 ONCHANGED\r\n",        "response: OK",NULL,100,10,100);
+    ret11 = AT_SendCmd(&serialSet,"GALEPHEMA COM1 ONCHANGED\r\n",        "response: OK",NULL,100,10,100);
 
-    if(ret1 || ret2 || ret3 || ret4 || ret5 || ret6)
+    if(ret1 || ret2 || ret3 || ret4 || ret5 || ret6 || ret7 || ret8 || ret9 || ret10 || ret11)
     {
         ret = -1;
     }
@@ -544,6 +553,1329 @@ static void getBestAttitudeData(char *msg, int msg_len)
     ub482GnssData.roll_std = 9999.0f;
 }
 
+static void getEphemerisHeader(char *msg,struct EphemHeader *header)
+{
+    char buf[32] = {0};
+
+    if(strstr(msg, "GPS") != NULL)
+    {
+        header->time_ref = 0;
+    }
+    else
+    {
+        header->time_ref = 1;
+    }
+
+    if(strstr(msg, "FINE") != NULL)
+    {
+        header->time_status = 1;
+    }
+    else
+    {
+        header->time_status = 0;
+    }
+
+    get_str1((unsigned char *)msg, (unsigned char *)",", 1, (unsigned char *)",", 2, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    header->cpu_idle = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 4, (unsigned char *)",", 5, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    header->week = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 5, (unsigned char *)",", 6, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    header->time = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 7, (unsigned char *)",", 8, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    header->version = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 8, (unsigned char *)",", 9, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    header->leap_sec = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 9, (unsigned char *)";", 1, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    header->output_delay = atoi(buf);
+}
+
+static void getGlonssEphemeris(char *msg, int msg_len,struct GLOEPHEM *glo)
+{
+    int pos = 0;
+    char buf[32] = {0};
+
+    getEphemerisHeader(msg,&glo->header);
+
+    pos = mystrstr((unsigned char *)msg, (unsigned char *)";", msg_len, 1);
+
+    msg += pos;
+
+    get_str1((unsigned char *)msg, (unsigned char *)";", 1, (unsigned char *)",", 1, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->sloto = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 1, (unsigned char *)",", 2, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->freqo = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 2, (unsigned char *)",", 3, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->sat_type = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 4, (unsigned char *)",", 5, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->week = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 5, (unsigned char *)",", 6, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->time = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 6, (unsigned char *)",", 7, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->t_offset = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 7, (unsigned char *)",", 8, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->nt = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 10, (unsigned char *)",", 11, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->issue = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 11, (unsigned char *)",", 12, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->health = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 12, (unsigned char *)",", 13, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->pos_x = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 13, (unsigned char *)",", 14, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->pos_y = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 14, (unsigned char *)",", 15, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->pos_z = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 15, (unsigned char *)",", 16, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->vel_x = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 16, (unsigned char *)",", 17, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->vel_y = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 17, (unsigned char *)",", 18, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->vel_z = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 18, (unsigned char *)",", 19, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->ls_acc_x = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 19, (unsigned char *)",", 20, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->ls_acc_y = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 20, (unsigned char *)",", 21, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->ls_acc_z = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 21, (unsigned char *)",", 22, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->tau_n = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 22, (unsigned char *)",", 23, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->delat_tau_n = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 23, (unsigned char *)",", 24, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->gamma = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 24, (unsigned char *)",", 25, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->tk = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 25, (unsigned char *)",", 26, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->p = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 26, (unsigned char *)",", 27, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->ft = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 27, (unsigned char *)",", 28, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->age = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 28, (unsigned char *)"*", 1, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    glo->flags = atoi(buf);
+}
+
+static void getGpsEphemeris(char *msg, int msg_len,struct GPSEPHEM *gps)
+{
+    int pos = 0;
+    char buf[32] = {0};
+
+    getEphemerisHeader(msg,&gps->header);
+
+    pos = mystrstr((unsigned char *)msg, (unsigned char *)";", msg_len, 1);
+
+    msg += pos;
+
+    get_str1((unsigned char *)msg, (unsigned char *)";", 1, (unsigned char *)",", 1, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->prn = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 1, (unsigned char *)",", 2, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->tow = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 2, (unsigned char *)",", 3, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->health = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 3, (unsigned char *)",", 4, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->iode_1 = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 4, (unsigned char *)",", 5, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->iode_2 = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 5, (unsigned char *)",", 6, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->week = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 6, (unsigned char *)",", 7, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->z_week = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 7, (unsigned char *)",", 8, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->toe = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 8, (unsigned char *)",", 9, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->a = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 9, (unsigned char *)",", 10, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->delat_n = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 10, (unsigned char *)",", 11, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->m_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 11, (unsigned char *)",", 12, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->ecc = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 12, (unsigned char *)",", 13, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->omega = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 13, (unsigned char *)",", 14, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->cuc = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 14, (unsigned char *)",", 15, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->cus = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 15, (unsigned char *)",", 16, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->crc = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 16, (unsigned char *)",", 17, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->crs = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 17, (unsigned char *)",", 18, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->cic = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 18, (unsigned char *)",", 19, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->cis = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 19, (unsigned char *)",", 20, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->i_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 20, (unsigned char *)",", 21, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->idot = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 21, (unsigned char *)",", 22, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->omega_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 22, (unsigned char *)",", 23, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->omega_dot = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 23, (unsigned char *)",", 24, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->iodc = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 24, (unsigned char *)",", 25, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->toc = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 25, (unsigned char *)",", 26, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->tgd = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 26, (unsigned char *)",", 27, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->af_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 27, (unsigned char *)",", 28, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->af_1 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 28, (unsigned char *)",", 29, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->af_2 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 29, (unsigned char *)",", 30, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->as = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 30, (unsigned char *)",", 31, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+
+    if(strstr(buf, "TRUE") != NULL)
+    {
+        gps->as = 1;
+    }
+    else
+    {
+        gps->as = 0;
+    }
+
+    gps->n = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 31, (unsigned char *)"*", 1, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gps->ura = atof(buf);
+}
+
+static void getBdsEphemeris(char *msg, int msg_len,struct BDSEPHEM *bds)
+{
+    int pos = 0;
+    char buf[32] = {0};
+
+    getEphemerisHeader(msg,&bds->header);
+
+    pos = mystrstr((unsigned char *)msg, (unsigned char *)";", msg_len, 1);
+
+    msg += pos;
+
+    get_str1((unsigned char *)msg, (unsigned char *)";", 1, (unsigned char *)",", 1, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->prn = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 1, (unsigned char *)",", 2, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->tow = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 2, (unsigned char *)",", 3, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->health = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 3, (unsigned char *)",", 4, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->iode_1 = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 4, (unsigned char *)",", 5, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->iode_2 = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 5, (unsigned char *)",", 6, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->week = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 6, (unsigned char *)",", 7, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->z_week = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 7, (unsigned char *)",", 8, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->toe = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 8, (unsigned char *)",", 9, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->a = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 9, (unsigned char *)",", 10, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->delat_n = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 10, (unsigned char *)",", 11, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->m_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 11, (unsigned char *)",", 12, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->ecc = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 12, (unsigned char *)",", 13, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->omega = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 13, (unsigned char *)",", 14, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->cuc = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 14, (unsigned char *)",", 15, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->cus = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 15, (unsigned char *)",", 16, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->crc = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 16, (unsigned char *)",", 17, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->crs = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 17, (unsigned char *)",", 18, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->cic = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 18, (unsigned char *)",", 19, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->cis = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 19, (unsigned char *)",", 20, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->i_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 20, (unsigned char *)",", 21, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->idot = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 21, (unsigned char *)",", 22, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->omega_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 22, (unsigned char *)",", 23, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->omega_dot = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 23, (unsigned char *)",", 24, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->iodc = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 24, (unsigned char *)",", 25, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->toc = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 25, (unsigned char *)",", 26, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->tgd_1 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 26, (unsigned char *)",", 27, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->tgd_2 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 27, (unsigned char *)",", 28, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->af_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 28, (unsigned char *)",", 29, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->af_1 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 29, (unsigned char *)",", 30, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->af_2 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 30, (unsigned char *)",", 31, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->as = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 31, (unsigned char *)",", 32, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+
+    if(strstr(buf, "TRUE") != NULL)
+    {
+        bds->as = 1;
+    }
+    else
+    {
+        bds->as = 0;
+    }
+
+    bds->n = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 32, (unsigned char *)"*", 1, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    bds->ura = atof(buf);
+}
+
+static void getGalEphemeris(char *msg, int msg_len,struct GALEPHEM *gal)
+{
+    int pos = 0;
+    char buf[32] = {0};
+
+    getEphemerisHeader(msg,&gal->header);
+
+    pos = mystrstr((unsigned char *)msg, (unsigned char *)";", msg_len, 1);
+
+    msg += pos;
+
+    get_str1((unsigned char *)msg, (unsigned char *)";", 1, (unsigned char *)",", 1, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->satid = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 1, (unsigned char *)",", 2, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->fnav_received = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 2, (unsigned char *)",", 3, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->inav_received = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 3, (unsigned char *)",", 4, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->e1b_health = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 4, (unsigned char *)",", 5, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->e5a_health = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 5, (unsigned char *)",", 6, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->e5b_health = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 6, (unsigned char *)",", 7, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->e1b_dvs = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 7, (unsigned char *)",", 8, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->e5a_dvs = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 8, (unsigned char *)",", 9, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->e5b_dvs = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 9, (unsigned char *)",", 10, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->sisa = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 11, (unsigned char *)",", 12, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->iodnav = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 12, (unsigned char *)",", 13, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->t0e = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 13, (unsigned char *)",", 14, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->a = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 14, (unsigned char *)",", 15, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->delat_n = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 15, (unsigned char *)",", 16, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->m_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 16, (unsigned char *)",", 17, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->ecc = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 17, (unsigned char *)",", 18, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->omega = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 18, (unsigned char *)",", 19, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->cuc = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 19, (unsigned char *)",", 20, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->cus = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 20, (unsigned char *)",", 21, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->crc = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 21, (unsigned char *)",", 22, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->crs = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 22, (unsigned char *)",", 23, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->cic = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 23, (unsigned char *)",", 24, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->cis = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 24, (unsigned char *)",", 25, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->i_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 25, (unsigned char *)",", 26, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->idot = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 26, (unsigned char *)",", 27, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->omega_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 27, (unsigned char *)",", 28, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->omega_dot = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 28, (unsigned char *)",", 29, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->fnavt0c = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 29, (unsigned char *)",", 30, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->fnavaf_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 30, (unsigned char *)",", 31, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->fnavaf_1 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 31, (unsigned char *)",", 32, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->fnavaf_2 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 32, (unsigned char *)",", 33, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->inavt0c = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 33, (unsigned char *)",", 34, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->inavaf_0 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 34, (unsigned char *)",", 35, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->inavaf_1 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 35, (unsigned char *)",", 36, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->inavaf_2 = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 36, (unsigned char *)",", 37, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->e1e5a_bgd = atof(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 37, (unsigned char *)"*", 1, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return;
+    }
+    gal->e1e5b_bgd = atof(buf);
+}
+
+static int getRangehData(char *msg, int msg_len,struct Rangeh *rangeh)
+{
+    int pos = 0;
+    int weeks = 0;
+    double seconds = 0;
+    char buf[32] = {0};
+    unsigned char i = 0;
+
+    get_str1((unsigned char *)msg, (unsigned char *)",", 5, (unsigned char *)",", 6, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return -1;
+    }
+    weeks = atoi(buf);
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)",", 6, (unsigned char *)",", 7, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return -1;
+    }
+    seconds = atof(buf);
+
+    rangeh->time_stamp = (double)(weeks * 7 * 24 * 3600) + seconds;
+
+    pos = mystrstr((unsigned char *)msg, (unsigned char *)";", msg_len, 1);
+
+    msg += pos;
+
+    memset(buf,0,32);
+    get_str1((unsigned char *)msg, (unsigned char *)";", 1, (unsigned char *)",", 1, (unsigned char *)buf);
+    if(strlen(buf) == 0)
+    {
+        return -1;
+    }
+    rangeh->satellite_num = atoi(buf);
+
+    rangeh->data = NULL;
+
+    rangeh->data = calloc(rangeh->satellite_num,sizeof(struct RangehData *));
+    if(rangeh->data == NULL)
+    {
+        return -1;
+    }
+
+    for(i = 0; i < rangeh->satellite_num; i ++)
+    {
+        rangeh->data[i] = (struct RangehData *)malloc(sizeof(struct RangehData));
+
+        if(rangeh->data[i] == NULL)
+        {
+            goto err_exit;
+        }
+
+        memset(buf,0,32);
+        get_str1((unsigned char *)msg, (unsigned char *)",", i * 10 + 1, (unsigned char *)",", i * 10 + 2, (unsigned char *)buf);
+        if(strlen(buf) == 0)
+        {
+            return -1;
+        }
+        rangeh->data[i]->prn = atoi(buf);
+
+        memset(buf,0,32);
+        get_str1((unsigned char *)msg, (unsigned char *)",", i * 10 + 2, (unsigned char *)",", i * 10 + 3, (unsigned char *)buf);
+        if(strlen(buf) == 0)
+        {
+            return -1;
+        }
+        rangeh->data[i]->glofreq = atoi(buf);
+
+        memset(buf,0,32);
+        get_str1((unsigned char *)msg, (unsigned char *)",", i * 10 + 3, (unsigned char *)",", i * 10 + 4, (unsigned char *)buf);
+        if(strlen(buf) == 0)
+        {
+            return -1;
+        }
+        rangeh->data[i]->psr = atof(buf);
+
+        memset(buf,0,32);
+        get_str1((unsigned char *)msg, (unsigned char *)",", i * 10 + 4, (unsigned char *)",", i * 10 + 5, (unsigned char *)buf);
+        if(strlen(buf) == 0)
+        {
+            return -1;
+        }
+        rangeh->data[i]->psr_std = atof(buf);
+
+        memset(buf,0,32);
+        get_str1((unsigned char *)msg, (unsigned char *)",", i * 10 + 5, (unsigned char *)",", i * 10 + 6, (unsigned char *)buf);
+        if(strlen(buf) == 0)
+        {
+            return -1;
+        }
+        rangeh->data[i]->adr = atof(buf);
+
+        memset(buf,0,32);
+        get_str1((unsigned char *)msg, (unsigned char *)",", i * 10 + 6, (unsigned char *)",", i * 10 + 7, (unsigned char *)buf);
+        if(strlen(buf) == 0)
+        {
+            return -1;
+        }
+        rangeh->data[i]->adr_std = atof(buf);
+
+        memset(buf,0,32);
+        get_str1((unsigned char *)msg, (unsigned char *)",", i * 10 + 7, (unsigned char *)",", i * 10 + 8, (unsigned char *)buf);
+        if(strlen(buf) == 0)
+        {
+            return -1;
+        }
+        rangeh->data[i]->dopp = atof(buf);
+
+        memset(buf,0,32);
+        get_str1((unsigned char *)msg, (unsigned char *)",", i * 10 + 8, (unsigned char *)",", i * 10 + 9, (unsigned char *)buf);
+        if(strlen(buf) == 0)
+        {
+            return -1;
+        }
+        rangeh->data[i]->c_no = atof(buf);
+
+        memset(buf,0,32);
+        get_str1((unsigned char *)msg, (unsigned char *)",", i * 10 + 9, (unsigned char *)",", i * 10 + 10, (unsigned char *)buf);
+        if(strlen(buf) == 0)
+        {
+            return -1;
+        }
+        rangeh->data[i]->locktime = atof(buf);
+
+        if(i < (rangeh->satellite_num - 1))
+        {
+            memset(buf,0,32);
+            get_str1((unsigned char *)msg, (unsigned char *)",", i * 10 + 10, (unsigned char *)",", i * 10 + 11, (unsigned char *)buf);
+            if(strlen(buf) == 0)
+            {
+                return -1;
+            }
+            rangeh->data[i]->ch_tr_status = atoi(buf);
+        }
+        else
+        {
+            memset(buf,0,32);
+            get_str1((unsigned char *)msg, (unsigned char *)",", i * 10 + 10, (unsigned char *)"*", 1, (unsigned char *)buf);
+            if(strlen(buf) == 0)
+            {
+                return -1;
+            }
+            rangeh->data[i]->ch_tr_status = atoi(buf);
+        }
+    }
+    return 0;
+
+err_exit:
+    for(i = 0; i < rangeh->satellite_num; i ++)
+    {
+        if(rangeh->data[i] != NULL)
+        {
+            free(rangeh->data[i]);
+            rangeh->data[i] = NULL;
+        }
+    }
+
+    free(rangeh->data);
+    rangeh->data = NULL;
+
+    return -1;
+}
+
 void sendTimeStampMsgToThreadSync(void)
 {
     int ret = 0;
@@ -584,6 +1916,7 @@ static int recvAndParseUb482GnssData(void)
             recv_buf[recv_len - 1] != '\n')
         {
             fprintf(stderr, "%s: recv invalid data\n",__func__);
+            fprintf(stderr, "%s: recv : %s\n",__func__,recv_buf);
             return -1;
         }
 
@@ -651,43 +1984,156 @@ static int recvAndParseUb482GnssData(void)
                 fprintf(stderr, "%s: other data check num error\n",__func__);
                 return -1;
             }
-
-            if(strstr(recv_buf, "#BESTPOSA") != NULL)
-            {
-                getBestPositionData(recv_buf,recv_len);
-            }
-            else if(strstr(recv_buf, "#BESTVELA") != NULL)
-            {
-                getBestVelocityData(recv_buf,recv_len);
-            }
-            else if(strstr(recv_buf, "#HEADINGA") != NULL)
-            {
-                getBestAttitudeData(recv_buf,recv_len);
-            }
-            else if(strstr(recv_buf, "#TIMEA") != NULL)
-            {
-                struct Ub482GnssData *ub482_gnss_data = NULL;
-
-                ub482_gnss_data = (struct Ub482GnssData *)malloc(sizeof(struct Ub482GnssData));
-                if(ub482_gnss_data != NULL)
-                {
-                    memcpy(ub482_gnss_data,&ub482GnssData,sizeof(struct Ub482GnssData));
-
-                    gnssUb482HeapPut(ub482_gnss_data);
-
-                    ret = xQueueSend((key_t)KEY_GNSS_UB482_HANDLER_MSG,ub482_gnss_data,MAX_QUEUE_MSG_NUM);
-                    if(ret == -1)
-                    {
-                        fprintf(stderr, "%s: send ub482_gnss_data queue msg failed\n",__func__);
-                    }
-                }
-
-                sendTimeStampMsgToThreadSync();
-            }
             else
             {
-                fprintf(stderr, "%s: invalid data frame\n",__func__);
-                return -1;
+                if(strstr(recv_buf, "#BESTPOSA") != NULL)
+                {
+                    getBestPositionData(recv_buf,recv_len);
+                }
+                else if(strstr(recv_buf, "#BESTVELA") != NULL)
+                {
+                    getBestVelocityData(recv_buf,recv_len);
+                }
+                else if(strstr(recv_buf, "#HEADINGA") != NULL)
+                {
+                    getBestAttitudeData(recv_buf,recv_len);
+                }
+                else if(strstr(recv_buf, "#TIMEA") != NULL)
+                {
+                    struct Ub482GnssData *ub482_gnss_data = NULL;
+
+                    ub482_gnss_data = (struct Ub482GnssData *)malloc(sizeof(struct Ub482GnssData));
+                    if(ub482_gnss_data != NULL)
+                    {
+                        memcpy(ub482_gnss_data,&ub482GnssData,sizeof(struct Ub482GnssData));
+
+                        ret = xQueueSend((key_t)KEY_GNSS_UB482_HANDLER_MSG,ub482_gnss_data,MAX_QUEUE_MSG_NUM);
+                        if(ret == -1)
+                        {
+                            fprintf(stderr, "%s: send ub482_gnss_data queue msg failed\n",__func__);
+                        }
+                    }
+
+                    sendTimeStampMsgToThreadSync();
+                }
+                else if(strstr(recv_buf, "#GLOEPHEMA") != NULL ||
+                        strstr(recv_buf, "#GPSEPHEMERISA") != NULL ||
+                        strstr(recv_buf, "#BDSEPHEMA") != NULL ||
+                        strstr(recv_buf, "#GALEPHEMA") != NULL)
+                {
+                    struct Ephemeris *ephemeris = NULL;
+
+                    ephemeris = (struct Ephemeris *)malloc(sizeof(struct Ephemeris));
+                    if(ephemeris == NULL)
+                    {
+                        fprintf(stderr, "%s: malloc ephemeris failed\n",__func__);
+                        return -1;
+                    }
+
+                    memset(ephemeris,0,sizeof(struct Ephemeris));
+
+                    if(strstr(recv_buf, "#GLOEPHEMA") != NULL)
+                    {
+                        struct GLOEPHEM *glo = NULL;
+
+                        glo = (struct GLOEPHEM *)malloc(sizeof(struct GLOEPHEM));
+                        if(glo == NULL)
+                        {
+                            fprintf(stderr, "%s: malloc glo failed\n",__func__);
+                            return -1;
+                        }
+
+                        memset(glo,0,sizeof(struct GLOEPHEM));
+
+                        ephemeris->flag = 0x01;
+                        ephemeris->ephem = (void *)glo;
+
+                        getGlonssEphemeris(recv_buf,recv_len,glo);
+                    }
+                    else if(strstr(recv_buf, "#GPSEPHEMERISA") != NULL)
+                    {
+                        struct GPSEPHEM *gps = NULL;
+
+                        gps = (struct GPSEPHEM *)malloc(sizeof(struct GPSEPHEM));
+                        if(gps == NULL)
+                        {
+                            fprintf(stderr, "%s: malloc gps failed\n",__func__);
+                            return -1;
+                        }
+
+                        memset(gps,0,sizeof(struct GPSEPHEM));
+
+                        ephemeris->flag = 0x02;
+                        ephemeris->ephem = (void *)gps;
+
+                        getGpsEphemeris(recv_buf,recv_len,gps);
+                    }
+                    else if(strstr(recv_buf, "#BDSEPHEMA") != NULL)
+                    {
+                        struct BDSEPHEM *bds = NULL;
+
+                        bds = (struct BDSEPHEM *)malloc(sizeof(struct BDSEPHEM));
+                        if(bds == NULL)
+                        {
+                            fprintf(stderr, "%s: malloc bds failed\n",__func__);
+                            return -1;
+                        }
+
+                        memset(bds,0,sizeof(struct BDSEPHEM));
+
+                        ephemeris->flag = 0x04;
+                        ephemeris->ephem = (void *)bds;
+
+                        getBdsEphemeris(recv_buf,recv_len,bds);
+                    }
+                    else if(strstr(recv_buf, "#GALEPHEMA") != NULL)
+                    {
+                        struct GALEPHEM *gal = NULL;
+
+                        gal = (struct GALEPHEM *)malloc(sizeof(struct GALEPHEM));
+                        if(gal == NULL)
+                        {
+                            fprintf(stderr, "%s: malloc gal failed\n",__func__);
+                            return -1;
+                        }
+
+                        memset(gal,0,sizeof(struct GALEPHEM));
+
+                        ephemeris->flag = 0x08;
+                        ephemeris->ephem = (void *)gal;
+
+                        getGalEphemeris(recv_buf,recv_len,gal);
+                    }
+
+                    ret = xQueueSend((key_t)KEY_EPHEMERIS_MSG,ephemeris,MAX_QUEUE_MSG_NUM);
+                    if(ret == -1)
+                    {
+                        fprintf(stderr, "%s: send ephemeris queue msg failed\n",__func__);
+                    }
+                }
+                else if(strstr(recv_buf, "#RANGEA") != NULL)
+                {
+                    struct Rangeh *rangeh = NULL;
+
+                    rangeh = (struct Rangeh *)malloc(sizeof(struct Rangeh));
+                    if(rangeh != NULL)
+                    {
+                        ret = getRangehData(recv_buf, recv_len,rangeh);
+                        if(ret == 0)
+                        {
+                            ret = xQueueSend((key_t)KEY_RANGEH_MSG,rangeh,MAX_QUEUE_MSG_NUM);
+                            if(ret == -1)
+                            {
+                                fprintf(stderr, "%s: send rangeh queue msg failed\n",__func__);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    fprintf(stderr, "%s: invalid data frame\n",__func__);
+                    return -1;
+                }
             }
         }
     }
@@ -715,8 +2161,6 @@ void *thread_ub482(void *arg)
     {
         fprintf(stderr, "%s: ub482 config init failed\n",__func__);
     }
-
-    allocateGnssUb482Heap(args->gnss_heap_depth);
 
     while(1)
     {

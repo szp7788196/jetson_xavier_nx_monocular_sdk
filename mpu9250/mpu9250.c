@@ -38,8 +38,6 @@ void *thread_mpu9250(void *arg)
         fprintf(stderr, "%s: ioctl operate failed\n",__func__);
     }
 
-    allocateImuMpu9250Heap(args->imu_heap_depth);
-
     while(1)
     {
         FD_ZERO(&readfds);
@@ -76,8 +74,6 @@ void *thread_mpu9250(void *arg)
                     }
                     else
                     {
-                        imuMpu9250HeapPut(mpu9250_sample_data);
-
                         ret = xQueueSend((key_t)KEY_IMU_MPU9250_HANDLER_MSG,mpu9250_sample_data,MAX_QUEUE_MSG_NUM);
                         if(ret == -1)
                         {

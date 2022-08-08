@@ -24,6 +24,7 @@ extern "C" {
 
 using namespace cv;
 
+
 int imageHandler(struct ImageUnit *image)
 {
     int ret = 0;
@@ -33,7 +34,7 @@ int imageHandler(struct ImageUnit *image)
     FILE *fp;
     char time_stamp_buf[64] = {0};
 
-    fp = fopen("/home/szp/work/cam0/time_stamp.txt", "a+");
+   /*  fp = fopen("/home/szp/work/cam0/time_stamp.txt", "a+");
     if(fp == NULL)
     {
         fprintf(stderr, "%s: Could not open time_stamp file\n",__func__);
@@ -65,7 +66,7 @@ int imageHandler(struct ImageUnit *image)
 
     fclose(fp);
 
-    gettimeofday(&tv[0],NULL);
+    gettimeofday(&tv[0],NULL); */
 
 /*     ret = imageBufCompressToJpeg(image_name,100,image->image,1,1);
     if(ret != 0)
@@ -73,7 +74,7 @@ int imageHandler(struct ImageUnit *image)
         fprintf(stderr, "%s: compress image buf to jpeg picture failed\n",__func__);
     } */
 
-    Mat img(image->image->height,image->image->width,CV_8UC1);
+/*     Mat img(image->image->height,image->image->width,CV_8UC1);
     convert_UYVY_To_GRAY((unsigned char *)image->image->image,
                          img.data,
 						 image->image->width,
@@ -85,7 +86,7 @@ int imageHandler(struct ImageUnit *image)
     gettimeofday(&tv[1],NULL);
 
     fprintf(stderr, "save jpg: %ldms\n",(tv[1].tv_sec * 1000 + tv[1].tv_usec / 1000) - (tv[0].tv_sec * 1000 + tv[0].tv_usec / 1000));
-
+ */
 
     printf("\r\n");
     printf("======================= image timestamp start =======================\n");
@@ -95,6 +96,8 @@ int imageHandler(struct ImageUnit *image)
     printf("* image->image->number                : %d\n",image->image->number);
     printf("* image->time_stamp->number           : %d\n",image->time_stamp->number);
     printf("======================== image timestamp end ========================\n");
+
+    //usleep(1000 * 1000);
 
     return ret;
 }
@@ -106,7 +109,7 @@ int imuAds16505Handler(struct SyncImuData *imuAds16505)
     char imu_data[128] = {0};
     long long int time_stamp = 0;
 
-    fp = fopen("/home/szp/work/imu0/data.csv", "a+");
+/*     fp = fopen("/home/szp/work/imu0/imu0.csv", "a+");
     if(fp == NULL)
     {
         fprintf(stderr, "%s: Could not open imu_data file\n",__func__);
@@ -126,7 +129,7 @@ int imuAds16505Handler(struct SyncImuData *imuAds16505)
 
     fwrite(imu_data, strlen(imu_data) , 1, fp);
 
-    fclose(fp);
+    fclose(fp); */
 
     return ret;
 }
@@ -137,7 +140,7 @@ int main(int argc, char **argv)
     FILE *fp;
     char temp_data[150] = {0};
 
-    fp = fopen("/home/szp/work/imu0/data.csv", "a+");
+/*     fp = fopen("/home/szp/work/imu0/imu0.csv", "a+");
     if(fp == NULL)
     {
         fprintf(stderr, "%s: Could not open imu_data file\n",__func__);
@@ -163,12 +166,12 @@ int main(int argc, char **argv)
 
     fwrite(temp_data, strlen(temp_data) , 1, fp);
 
-    fclose(fp);
+    fclose(fp); */
 
 
     monocular_sdk_init(argc, argv);
 
-    monocular_sdk_register_handler(imageHandler,imuAds16505Handler,NULL,NULL);
+    monocular_sdk_register_handler(imageHandler,imuAds16505Handler,NULL,NULL,NULL,NULL);
 
     cvNamedWindow("Capture",CV_WINDOW_AUTOSIZE);
 
