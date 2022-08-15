@@ -4,7 +4,6 @@
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 
-
 #define TEGRA_CAMERA_CID_BASE	                (V4L2_CTRL_CLASS_CAMERA | 0x2000)
 #define TEGRA_CAMERA_CID_LOW_LATENCY            (TEGRA_CAMERA_CID_BASE+109)
 #define TEGRA_CAMERA_CID_VI_TIME_OUT_DISABLE    (TEGRA_CAMERA_CID_BASE + 120)

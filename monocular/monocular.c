@@ -1780,7 +1780,7 @@ static int pthreadCreate(void *args)
     static pthread_t tid_led = 0;
 
 	static pthread_t tid_image_handler = 0;
-	static pthread_t tid_imu_ads16505_handler = 0;
+	static pthread_t tid_imu_sync_handler = 0;
 	static pthread_t tid_imu_mpu9250_handler = 0;
 	static pthread_t tid_gnss_ub482_handler = 0;
 	static pthread_t tid_ephemeris_ub482_handler = 0;
@@ -1845,10 +1845,10 @@ static int pthreadCreate(void *args)
         fprintf(stderr, "%s: create thread_image_handler failed\n",__func__);
     }
 
-	ret = pthread_create(&tid_imu_ads16505_handler,NULL,thread_imu_ads16505_handler,NULL);
+	ret = pthread_create(&tid_imu_sync_handler,NULL,thread_imu_sync_handler,NULL);
     if(0 != ret)
     {
-        fprintf(stderr, "%s: create thread_imu_ads16505_handler failed\n",__func__);
+        fprintf(stderr, "%s: create thread_imu_sync_handler failed\n",__func__);
     }
 
 	ret = pthread_create(&tid_imu_mpu9250_handler,NULL,thread_imu_mpu9250_handler,NULL);
@@ -1897,14 +1897,14 @@ int monocular_sdk_init(int argc, char **argv)
 }
 
 void monocular_sdk_register_handler(ImageHandler image_handler,
-                                    ImuAds16505Handler imu_ads16505_handler,
+                                    ImuSyncHandler imu_sync_handler,
 									ImuMpu9250Handler imu_mpu9250_handler,
 									GnssUb482Handler gnss_ub482_handler,
 									EphemerisUb482Handler ephemeris_ub482_handler,
 									RangehUb482Handler rangeh_ub482_handler)
 {
 	dataHandler.image_handler        	= image_handler;
-	dataHandler.imu_ads16505_handler 	= imu_ads16505_handler;
+	dataHandler.imu_sync_handler 		= imu_sync_handler;
 	dataHandler.imu_mpu9250_handler  	= imu_mpu9250_handler;
 	dataHandler.gnss_ub482_handler   	= gnss_ub482_handler;
 	dataHandler.ephemeris_ub482_handler	= ephemeris_ub482_handler;

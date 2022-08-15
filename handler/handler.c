@@ -59,7 +59,7 @@ void *thread_image_handler(void *arg)
     }
 }
 
-void *thread_imu_ads16505_handler(void *arg)
+void *thread_imu_sync_handler(void *arg)
 {
     int ret = 0;
     struct SyncImuData *sync_imu_data = NULL;
@@ -73,12 +73,12 @@ void *thread_imu_ads16505_handler(void *arg)
         }
         else
         {
-            if(dataHandler.imu_ads16505_handler != NULL)
+            if(dataHandler.imu_sync_handler != NULL)
             {
-                ret = dataHandler.imu_ads16505_handler(sync_imu_data);
+                ret = dataHandler.imu_sync_handler(sync_imu_data);
                 if(ret != 0)
                 {
-                    fprintf(stderr, "%s: dataHandler.sync_imu_data error\n",__func__);
+                    fprintf(stderr, "%s: dataHandler.imu_sync_handler error\n",__func__);
                 }
             }
 
@@ -107,7 +107,7 @@ void *thread_imu_mpu9250_handler(void *arg)
                 ret = dataHandler.imu_mpu9250_handler(mpu9250_sample_data);
                 if(ret != 0)
                 {
-                    fprintf(stderr, "%s: dataHandler.mpu9250_sample_data error\n",__func__);
+                    fprintf(stderr, "%s: dataHandler.imu_mpu9250_handler error\n",__func__);
                 }
             }
 
@@ -136,7 +136,7 @@ void *thread_gnss_ub482_handler(void *arg)
                 ret = dataHandler.gnss_ub482_handler(ub482_gnss_data);
                 if(ret != 0)
                 {
-                    fprintf(stderr, "%s: dataHandler.ub482_gnss_data error\n",__func__);
+                    fprintf(stderr, "%s: dataHandler.gnss_ub482_handler error\n",__func__);
                 }
             }
 
@@ -165,7 +165,7 @@ void *thread_ephemeris_ub482_handler(void *arg)
                 ret = dataHandler.ephemeris_ub482_handler(ephemeris);
                 if(ret != 0)
                 {
-                    fprintf(stderr, "%s: dataHandler.ephemeris error\n",__func__);
+                    fprintf(stderr, "%s: dataHandler.ephemeris_ub482_handler error\n",__func__);
                 }
             }
 
@@ -220,7 +220,7 @@ void *thread_rangeh_ub482_handler(void *arg)
                 ret = dataHandler.rangeh_ub482_handler(rangeh);
                 if(ret != 0)
                 {
-                    fprintf(stderr, "%s: dataHandler.rangeh error\n",__func__);
+                    fprintf(stderr, "%s: dataHandler.rangeh_ub482_handler error\n",__func__);
                 }
             }
 

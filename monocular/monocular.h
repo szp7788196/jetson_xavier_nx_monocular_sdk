@@ -18,27 +18,27 @@
 
 #define MAX_QUEUE_MSG_NUM						100
 
-#define KEY_UB482_GPGGA_MSG         			1000
-#define KEY_NTRIP_RTCM_MSG              		1001
-#define KEY_FRAME_RATE_MSG          			1002
-#define KEY_UB482_TIME_STAMP_MSG    			1003
-#define KEY_SYNC_CAM_TIME_STAMP_MSG    			1004
-#define KEY_CAMERA_RESET_MSG					1005
-#define KEY_SYNC_MODULE_RESET_MSG				1006
-#define KEY_IMAGE_HANDLER_MSG					1007
-#define KEY_IMU_ADS16505_HANDLER_MSG			1008
-#define KEY_IMU_MPU9250_HANDLER_MSG				1009
-#define KEY_GNSS_UB482_HANDLER_MSG				1010
-#define KEY_SYNC_1HZ_SUCCESS_MSG				1011
-#define KEY_CAMERA_READY_MSG					1012
-#define KEY_EPHEMERIS_MSG						1013
-#define KEY_RANGEH_MSG							1014
+#define KEY_UB482_GPGGA_MSG         	1000
+#define KEY_NTRIP_RTCM_MSG              1001
+#define KEY_FRAME_RATE_MSG          	1002
+#define KEY_UB482_TIME_STAMP_MSG    	1003
+#define KEY_SYNC_CAM_TIME_STAMP_MSG    	1004
+#define KEY_CAMERA_RESET_MSG			1005
+#define KEY_SYNC_MODULE_RESET_MSG		1006
+#define KEY_IMAGE_HANDLER_MSG			1007
+#define KEY_IMU_ADS16505_HANDLER_MSG	1008
+#define KEY_IMU_MPU9250_HANDLER_MSG		1009
+#define KEY_GNSS_UB482_HANDLER_MSG		1010
+#define KEY_SYNC_1HZ_SUCCESS_MSG		1011
+#define KEY_CAMERA_READY_MSG			1012
+#define KEY_EPHEMERIS_MSG				1013
+#define KEY_RANGEH_MSG					1014
 
-#define NTRIP_RTCM_MSG_MAX_LEN          		1024
+#define NTRIP_RTCM_MSG_MAX_LEN          1024
 
-#define NOT_SYNC_THRESHOLD      				30
+#define NOT_SYNC_THRESHOLD      		30
 
-#define RTCM3PREAMB 							0xD3
+#define RTCM3PREAMB 					0xD3
 
 
 #define CAP(val, min, max)\
@@ -149,7 +149,7 @@ struct GnssUb482Heap
 };
 
 typedef int (*ImageHandler)(struct ImageUnit *);
-typedef int (*ImuAds16505Handler)(struct SyncImuData *);
+typedef int (*ImuSyncHandler)(struct SyncImuData *);
 typedef int (*ImuMpu9250Handler)(struct Mpu9250SampleData *);
 typedef int (*GnssUb482Handler)(struct Ub482GnssData *);
 typedef int (*EphemerisUb482Handler)(struct Ephemeris *);
@@ -158,7 +158,7 @@ typedef int (*RangehUb482Handler)(struct Rangeh *);
 struct DataHandler
 {
 	ImageHandler image_handler;
-	ImuAds16505Handler imu_ads16505_handler;
+	ImuSyncHandler imu_sync_handler;
 	ImuMpu9250Handler imu_mpu9250_handler;
 	GnssUb482Handler gnss_ub482_handler;
 	EphemerisUb482Handler ephemeris_ub482_handler;
@@ -390,7 +390,7 @@ int imageBufCompressToPng(char *file_name,
 int imageBufCompressToBmp(char *file_name,struct ImageBuffer *image,unsigned char format);
 int monocular_sdk_init(int argc, char **argv);
 void monocular_sdk_register_handler(ImageHandler image_handler,
-                                    ImuAds16505Handler imu_ads16505_handler,
+                                    ImuSyncHandler imu_sync_handler,
 									ImuMpu9250Handler imu_mpu9250_handler,
 									GnssUb482Handler gnss_ub482_handler,
 									EphemerisUb482Handler ephemeris_ub482_handler,

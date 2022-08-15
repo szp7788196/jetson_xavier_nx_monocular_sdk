@@ -27,7 +27,8 @@ static RingBuf ring_fifo;
 static unsigned char rx_fifo[MAX_SYNC_BUF_LEN] = {0};
 
 
-static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data);
+static int syncParseImuBmi088Data(unsigned char *inbuf,struct SyncImuData *imu_data);
+static int syncParseImuAdis16505Data(unsigned char *inbuf,struct SyncImuData *imu_data);
 static int syncParseCamTimeStamp(unsigned char *inbuf,struct SyncCamTimeStamp *cam_time_stamp);
 
 
@@ -125,14 +126,33 @@ static void *thread_serial_recv(void *arg)
                         case IMU_DATA:
                             ringbuf_put(&ring_fifo, rxdata);
 
-                            if(ringbuf_elements(&ring_fifo) == IMU_DATA_LEN)
+                            if(ringbuf_elements(&ring_fifo) == IMU_ADIS16505_DATA_LEN ||
+                               ringbuf_elements(&ring_fifo) == IMU_BMI088_DATA_LEN)
                             {
                                 struct SyncImuData *sync_imu_data = NULL;
 
                                 sync_imu_data = (struct SyncImuData *)malloc(sizeof(struct SyncImuData));
                                 if(sync_imu_data != NULL)
                                 {
-                                    ret = syncParseImuData(ring_fifo.data,sync_imu_data);
+                                    if(ringbuf_elements(&ring_fifo) == IMU_BMI088_DATA_LEN)
+                                    {
+                                        if(*(ring_fifo.data + 16) == 0x0F && *(ring_fifo.data + 17) == 0x1E)
+                                        {
+                                            ret = syncParseImuBmi088Data(ring_fifo.data,sync_imu_data);
+                                        }
+                                        else
+                                        {
+                                            free(sync_imu_data);
+                                            sync_imu_data = NULL;
+
+                                            goto GET_OUT;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        ret = syncParseImuAdis16505Data(ring_fifo.data,sync_imu_data);
+                                    }
+
                                     if(ret != 0)
                                     {
                                         free(sync_imu_data);
@@ -152,6 +172,7 @@ static void *thread_serial_recv(void *arg)
 
                                 parser_state = IDLE;
                             }
+                        GET_OUT:
                         break;
 
                         case CAM_DATA:
@@ -265,7 +286,138 @@ static int syncSetTimeStamp(double t)
     return ret;
 }
 
-static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data)
+static int syncParseImuBmi088Data(unsigned char *inbuf,struct SyncImuData *imu_data)
+{
+    int ret = 0;
+    static unsigned int last_counter = 0;
+    unsigned long time_stamp = 0;
+    unsigned char gyro_range_conf = 0;
+    unsigned char acc_range_conf = 0;
+    int i = 0;
+
+    if(*(inbuf + POS_IMU_HEAD + 0) != 0x0F || *(inbuf + POS_IMU_HEAD + 1) != 0x1E)
+    {
+        fprintf(stderr, "%s: imu data head err,is not 0x0F 0x1E\n",__func__);
+        return -1;
+    }
+
+    imu_data->imu_module = IMU_BMI088;
+
+    imu_data->counter = ((((unsigned int)(*(inbuf + POS_BMI088_IMU_CNT + 0))) << 24) & 0xFF000000) +
+                        ((((unsigned int)(*(inbuf + POS_BMI088_IMU_CNT + 1))) << 16) & 0x00FF0000) +
+                        ((((unsigned int)(*(inbuf + POS_BMI088_IMU_CNT + 2))) <<  8) & 0x0000FF00) +
+                        ((((unsigned int)(*(inbuf + POS_BMI088_IMU_CNT + 3))) <<  0) & 0x000000FF);
+    if(last_counter > 0)
+    {
+        if(imu_data->counter - last_counter != 1)
+        {
+            fprintf(stderr, "%s: imu data counter err,is not continous,current = %d,last = %d\n",__func__,imu_data->counter,last_counter);
+        }
+    }
+
+    last_counter = imu_data->counter;
+
+    time_stamp = ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) +
+                 ((((unsigned long)(*(inbuf + POS_LOCAL_TIME_STAMP + 7))) <<  0) & 0x00000000000000FF);
+
+    imu_data->time_stamp_local = (double)time_stamp / (double)FPGA_CLOCK_HZ;
+
+    time_stamp = ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 0))) << 56) & 0xFF00000000000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 1))) << 48) & 0x00FF000000000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 2))) << 40) & 0x0000FF0000000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 3))) << 32) & 0x000000FF00000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 4))) << 24) & 0x00000000FF000000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 5))) << 16) & 0x0000000000FF0000) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 6))) <<  8) & 0x000000000000FF00) +
+                 ((((unsigned long)(*(inbuf + POS_GNSS_TIME_STAMP + 7))) <<  0) & 0x00000000000000FF);
+
+    imu_data->time_stamp_gnss = (double)time_stamp / (double)FPGA_CLOCK_HZ;
+
+    gyro_range_conf = *(inbuf + POS_IMU_PAYLOAD + 6);
+
+    switch(gyro_range_conf)
+    {
+        case 0:
+            imu_data->gyro_range = 2000;
+        break;
+
+        case 1:
+            imu_data->gyro_range = 1000;
+        break;
+
+        case 2:
+            imu_data->gyro_range = 500;
+        break;
+
+        case 3:
+            imu_data->gyro_range = 250;
+        break;
+
+        case 4:
+            imu_data->gyro_range = 155;
+        break;
+
+        default:
+            imu_data->gyro_range = 500;
+        break;
+    }
+
+    acc_range_conf = *(inbuf + POS_IMU_PAYLOAD + 10);
+
+    switch(gyro_range_conf)
+    {
+        case 0:
+            imu_data->acc_range = 2;
+        break;
+
+        case 1:
+            imu_data->acc_range = 4;
+        break;
+
+        case 2:
+            imu_data->acc_range = 8;
+        break;
+
+        case 3:
+            imu_data->acc_range = 16;
+        break;
+
+        default:
+            imu_data->acc_range = 8;
+        break;
+    }
+
+    imu_data->gx = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 1))) << 8) & 0x0000FF00) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 0))) << 0) & 0x000000FF);
+
+    imu_data->gy = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 3))) << 8) & 0x0000FF00) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 2))) << 0) & 0x000000FF);
+
+    imu_data->gz = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 5))) << 8) & 0x0000FF00) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 4))) << 0) & 0x000000FF);
+
+    imu_data->ax = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 12))) << 8) & 0x0000FF00) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 11))) << 0) & 0x000000FF);
+
+    imu_data->ay = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 14))) << 8) & 0x0000FF00) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 13))) << 0) & 0x000000FF);
+
+    imu_data->az = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 16))) << 8) & 0x0000FF00) +
+                   ((((int)(*(inbuf + POS_IMU_PAYLOAD + 15))) << 0) & 0x000000FF);
+
+    imu_data->temperature = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 17))) << 8) & 0x0000FF00) +
+                            ((((int)(*(inbuf + POS_IMU_PAYLOAD + 18))) << 0) & 0x000000FF);
+
+    return ret;
+}
+
+static int syncParseImuAdis16505Data(unsigned char *inbuf,struct SyncImuData *imu_data)
 {
     int ret = 0;
     unsigned short check_sum_cal = 0;
@@ -281,18 +433,20 @@ static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data)
     }
 
     check_sum_cal = CalCheckSum(inbuf + POS_IMU_PAYLOAD, IMU_PAYLOAD_LEN - 2);
-    check_sum_recv = ((((unsigned short)(*(inbuf + POS_IMU_CHECK + 0))) << 8) & 0xFF00) +
-                     ((((unsigned short)(*(inbuf + POS_IMU_CHECK + 1))) << 0) & 0x00FF);
+    check_sum_recv = ((((unsigned short)(*(inbuf + POS_ADIS16505_IMU_CHECK + 0))) << 8) & 0xFF00) +
+                     ((((unsigned short)(*(inbuf + POS_ADIS16505_IMU_CHECK + 1))) << 0) & 0x00FF);
     if(check_sum_cal != check_sum_recv)
     {
         fprintf(stderr, "%s: imu data check sum err,cal:%04X,recv:%04X\n",__func__,check_sum_cal,check_sum_recv);
         return -1;
     }
 
-    imu_data->counter = ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 0))) << 24) & 0xFF000000) +
-                        ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 1))) << 16) & 0x00FF0000) +
-                        ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 2))) <<  8) & 0x0000FF00) +
-                        ((((unsigned int)(*(inbuf + POS_IMU_CNT2 + 3))) <<  0) & 0x000000FF);
+    imu_data->imu_module = IMU_ADIS16505;
+
+    imu_data->counter = ((((unsigned int)(*(inbuf + POS_ADIS16505_IMU_CNT2 + 0))) << 24) & 0xFF000000) +
+                        ((((unsigned int)(*(inbuf + POS_ADIS16505_IMU_CNT2 + 1))) << 16) & 0x00FF0000) +
+                        ((((unsigned int)(*(inbuf + POS_ADIS16505_IMU_CNT2 + 2))) <<  8) & 0x0000FF00) +
+                        ((((unsigned int)(*(inbuf + POS_ADIS16505_IMU_CNT2 + 3))) <<  0) & 0x000000FF);
     if(last_counter > 0)
     {
         if(imu_data->counter - last_counter != 1)
@@ -355,8 +509,8 @@ static int syncParseImuData(unsigned char *inbuf,struct SyncImuData *imu_data)
                    ((((int)(*(inbuf + POS_IMU_PAYLOAD + 22))) <<  8) & 0x0000FF00) +
                    ((((int)(*(inbuf + POS_IMU_PAYLOAD + 23))) <<  0) & 0x000000FF);
 
-    imu_data->temperature = ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 26))) << 8) & 0xFF00) +
-                            ((((unsigned short)(*(inbuf + POS_IMU_PAYLOAD + 27))) << 0) & 0x00FF);
+    imu_data->temperature = ((((int)(*(inbuf + POS_IMU_PAYLOAD + 26))) << 8) & 0x0000FF00) +
+                            ((((int)(*(inbuf + POS_IMU_PAYLOAD + 27))) << 0) & 0x000000FF);
 
     return ret;
 }
@@ -530,6 +684,7 @@ void *thread_sync_module(void *arg)
         goto THREAD_EXIT;
     }
 
+    allocateImuAdis16505Heap(args->sync_heap_depth);
     allocateSyncCamTimeStampHeap(args->ts_heap_depth);
 
     ret = pthread_create(&tid_serial_recv,NULL,thread_serial_recv,&serialSync);
