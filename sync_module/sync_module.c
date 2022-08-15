@@ -684,7 +684,6 @@ void *thread_sync_module(void *arg)
         goto THREAD_EXIT;
     }
 
-    allocateImuAdis16505Heap(args->sync_heap_depth);
     allocateSyncCamTimeStampHeap(args->ts_heap_depth);
 
     ret = pthread_create(&tid_serial_recv,NULL,thread_serial_recv,&serialSync);
