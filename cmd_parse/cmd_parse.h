@@ -49,6 +49,8 @@ struct CmdArgs
   char *usb_cam_def_conf_file;         //usb相机默认配置文件
   char *usb_cam_user_conf_file;        //usb相机用户配置文件
   char *mipi_cam_user_conf_file;       //mipi相机用户配置文件
+  char *m3s_cam_def_conf_file;         //m3s相机默认配置文件
+  char *m3s_cam_user_conf_file;        //m3s相机用户配置文件
 
   unsigned char camera_module;         //相机型号,0:UI3420; 1:CSSC132
   unsigned short image_heap_depth;     //图像堆深度

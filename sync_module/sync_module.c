@@ -271,7 +271,6 @@ static int syncSetTimeStamp(double t)
     int i = 0;
     unsigned char msg[11] = {0xEB, 0x90, 0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
     unsigned char tmsg[8] = {0};
-    // unsigned long time = (unsigned long )(t * 1000.0f) * FPGA_CLOCK_HZ;
     unsigned long time = (unsigned long )t * FPGA_CLOCK_HZ;
 
     memcpy(tmsg, &time, 8);
@@ -602,7 +601,7 @@ static int recvFrameRateMsg(void)
     return 0;
 }
 
-static int recvResetMsg(void)
+static int recvSyncResetMsg(void)
 {
     int ret = 0;
     unsigned char *reset = NULL;
@@ -708,7 +707,7 @@ void *thread_sync_module(void *arg)
 
             case (unsigned char)SET_1_HZ:
                 ret = syncSetCamTrigStart();
-                //ret = syncSetCamTrigFreq((unsigned short)(5 + 0.5f));
+                // ret = syncSetCamTrigFreq((unsigned short)(5 + 0.5f));
                 if(ret >= 0)
                 {
                     syncState = RUNNING;
@@ -731,7 +730,7 @@ void *thread_sync_module(void *arg)
                 {
                     syncState = SET_X_HZ;
                 }
-                ret = recvResetMsg();                       //接收复位消息队列
+                ret = recvSyncResetMsg();                   //接收复位消息队列
                 if(ret != -1)
                 {
                     syncState = SET_STOP;

@@ -2994,60 +2994,6 @@ static void printCameraConfig(struct Ui3240Config *config)
     printf("|===================== Ui3240Config end =====================\n");
 }
 
-static void sendFrameRateMsgToThreadSync(void)
-{
-    int ret = 0;
-    double *frame_rate = NULL;
-
-    if(cameraConfig.auto_frame_rate == true)
-    {
-        return;
-    }
-
-    frame_rate = (double *)malloc(sizeof(double));
-    if(frame_rate != NULL)
-    {
-        *frame_rate = cameraConfig.frame_rate;
-
-        ret = xQueueSend((key_t)KEY_FRAME_RATE_MSG,frame_rate,MAX_QUEUE_MSG_NUM);
-        if(ret == -1)
-        {
-            fprintf(stderr, "%s: send ui3240 frame rate queue msg failed\n",__func__);
-        }
-    }
-}
-
-static int recvResetMsg(void)
-{
-    int ret = 0;
-    unsigned char *reset = NULL;
-
-    ret = xQueueReceive((key_t)KEY_CAMERA_RESET_MSG,(void **)&reset,0);
-    if(ret == -1)
-    {
-        return -1;
-    }
-
-    free(reset);
-    reset = NULL;
-
-    return ret;
-}
-
-static int recvSync1HzSuccessMsg(void)
-{
-    int ret = 0;
-    char *success = NULL;
-
-    ret = xQueueReceive((key_t)KEY_SYNC_1HZ_SUCCESS_MSG,(void **)&success,0);
-    if(ret == -1)
-    {
-        return -1;
-    }
-
-    return ret;
-}
-
 void *thread_ui3240(void *arg)
 {
     int ret = IS_SUCCESS;
@@ -3128,7 +3074,7 @@ void *thread_ui3240(void *arg)
                 }
                 else
                 {
-                    sendFrameRateMsgToThreadSync();
+                    // sendFrameRateMsgToThreadSync(cameraConfig.frame_rate);
 
                     camera_state = SET_TRIGGER_MODE;
                 }
@@ -3177,7 +3123,7 @@ void *thread_ui3240(void *arg)
             break;
         }
 
-        ret = recvResetMsg();
+        ret = recvCameraResetMsg();
         if(ret != -1)
         {
             image_num = 0;
@@ -3187,7 +3133,7 @@ void *thread_ui3240(void *arg)
         ret = recvSync1HzSuccessMsg();
         if(ret != -1)
         {
-           sendFrameRateMsgToThreadSync();
+           sendFrameRateMsgToThreadSync(cameraConfig.frame_rate);
         }
     }
 }

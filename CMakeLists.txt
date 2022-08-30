@@ -4,7 +4,7 @@ project(monocular)
 
 set(CMAKE_BUILD_TYPE Release)
 
-set(JPEG_DIR /usr/local/lib)
+# set(JPEG_DIR /usr/local/lib)
 
 ############################################################
 # Create a library
@@ -26,15 +26,18 @@ add_library(monocular SHARED
     sync_module/sync_module.c
     ub482/ub482.c
     ui3240/ui3240.c
+    m3st130h/m3st130h.c
     fifo/ringbuf.c
 )
 
 target_link_libraries(monocular
     m
-    ${JPEG_DIR}/libjpeg.a
+    # ${JPEG_DIR}/libjpeg.a
     png
     pthread
     ueye_api
+    dvp
+    hzd
 )
 
 # target_include_directories(monocular
@@ -68,6 +71,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/sync_module
     ${PROJECT_SOURCE_DIR}/ub482
     ${PROJECT_SOURCE_DIR}/ui3240
+    ${PROJECT_SOURCE_DIR}/m3st130h
     ${PROJECT_SOURCE_DIR}/fifo
 )
 

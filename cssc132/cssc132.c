@@ -1992,29 +1992,6 @@ static int stopCaptureImage(struct Cssc132Config config)
     return ret;
 }
 
-static void sendFrameRateMsgToThreadSync(struct Cssc132Config config)
-{
-    int ret = 0;
-    double *frame_rate = NULL;
-
-    if(config.stream_mode != 2)
-    {
-        return;
-    }
-
-    frame_rate = (double *)malloc(sizeof(double));
-    if(frame_rate != NULL)
-    {
-        *frame_rate = config.trigger_frame_rate;
-
-        ret = xQueueSend((key_t)KEY_FRAME_RATE_MSG,frame_rate,MAX_QUEUE_MSG_NUM);
-        if(ret == -1)
-        {
-            fprintf(stderr, "%s: send cssc132 frame rate queue msg failed\n",__func__);
-        }
-    }
-}
-
 static void sendCameraReadyMsgToThreadSync(void)
 {
     int ret = 0;
@@ -2086,37 +2063,6 @@ static int captureImage(struct Cssc132Config config,unsigned int *image_num)
     if(ret == -1)
     {
         fprintf(stderr, "%s: ioctl VIDIOC_QBUF failed\n",__func__);
-    }
-
-    return ret;
-}
-
-static int recvResetMsg(void)
-{
-    int ret = 0;
-    unsigned char *reset = NULL;
-
-    ret = xQueueReceive((key_t)KEY_CAMERA_RESET_MSG,(void **)&reset,0);
-    if(ret == -1)
-    {
-        return -1;
-    }
-
-    free(reset);
-    reset = NULL;
-
-    return ret;
-}
-
-static int recvSync1HzSuccessMsg(void)
-{
-    int ret = 0;
-    char *success = NULL;
-
-    ret = xQueueReceive((key_t)KEY_SYNC_1HZ_SUCCESS_MSG,(void **)&success,0);
-    if(ret == -1)
-    {
-        return -1;
     }
 
     return ret;
@@ -2244,7 +2190,7 @@ void *thread_cssc132(void *arg)
             break;
         }
 
-        ret = recvResetMsg();
+        ret = recvCameraResetMsg();
         if(ret != -1)
         {
             image_num = 0;
@@ -2254,7 +2200,7 @@ void *thread_cssc132(void *arg)
         ret = recvSync1HzSuccessMsg();
         if(ret != -1)
         {
-           sendFrameRateMsgToThreadSync(cssc132Config);
+           sendFrameRateMsgToThreadSync(cssc132Config.trigger_frame_rate);
         }
     }
 }

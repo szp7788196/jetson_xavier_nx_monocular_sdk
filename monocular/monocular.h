@@ -353,9 +353,13 @@ int AT_SendCmd(struct Serial *sn,
                unsigned int timeout);
 long long tm_to_ns(struct timespec tm);
 struct timespec ns_to_tm(long long ns);
+void delete_file(const char *path);
 int queryEC20_IMEI(char *imei);
 int xQueueSend(key_t queue_key,void *msg_to_queue,unsigned short queue_depth);
 int xQueueReceive(key_t queue_key,void **msg_from_queue,unsigned char block);
+int recvCameraResetMsg(void);
+int recvSync1HzSuccessMsg(void);
+void sendFrameRateMsgToThreadSync(double frame_rate);
 void clearSystemQueueMsg(void);
 void freeImageHeap(void);
 int allocateImageHeap(unsigned short depth,unsigned int image_size);
@@ -379,14 +383,14 @@ int convert_UYVY_To_GRAY(unsigned char *in_buf,
                         unsigned char *out_buf,
 						int image_width,
 						int image_height);
-int imageBufCompressToJpeg(char *file_name,
+/* int imageBufCompressToJpeg(char *file_name,
                            int quality,
                            struct ImageBuffer *image,
                            unsigned char format,
                            unsigned char camera_type);
 int imageBufCompressToPng(char *file_name,
 						   struct ImageBuffer *image,
-						   unsigned char format);
+						   unsigned char format); */
 int imageBufCompressToBmp(char *file_name,struct ImageBuffer *image,unsigned char format);
 int monocular_sdk_init(int argc, char **argv);
 void monocular_sdk_register_handler(ImageHandler image_handler,

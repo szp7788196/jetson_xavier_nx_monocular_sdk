@@ -9,14 +9,18 @@
 extern "C" {
 #endif
 
-#include "monocular.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include "monocular.h"
 #include "ui3240.h"
 #include "cssc132.h"
-#include <signal.h>
+#include "cmd_parse.h"
+
 
 #ifdef __cplusplus
 }
@@ -51,7 +55,6 @@ int imageHandler(struct ImageUnit *image)
 
     fclose(fp);
 
-
     memset(time_stamp_buf,0,64);
     fp = fopen("/home/szp/work/calibration/cam0/data.csv", "a+");
     if(fp == NULL)
@@ -69,10 +72,11 @@ int imageHandler(struct ImageUnit *image)
     gettimeofday(&tv[0],NULL);
 
     Mat img(image->image->height,image->image->width,CV_8UC1);
-    convert_UYVY_To_GRAY((unsigned char *)image->image->image,
+    /* convert_UYVY_To_GRAY((unsigned char *)image->image->image,
                          img.data,
 						 image->image->width,
-						 image->image->height);
+						 image->image->height); */
+    img.data = (unsigned char *)image->image->image;
     imwrite(image_name, img);
     imshow("Capture", img);
 	waitKey(1);
@@ -145,34 +149,54 @@ int main(int argc, char **argv)
     FILE *fp;
     char temp_data[150] = {0};
 
-    fp = fopen("/home/szp/work/calibration/imu0/imu0.csv", "a+");
+    delete_file("/home/szp/work/calibration");
+
+    ret = mkdir("/home/szp/work/calibration/imu0",0755);
+    if(ret != 0)
+    {
+        fprintf(stderr, "%s: mkdir /home/szp/work/calibration/imu0 failed\n",__func__);
+    }
+
+    ret = mkdir("/home/szp/work/calibration/cam0",0755);
+    if(ret != 0)
+    {
+        fprintf(stderr, "%s: mkdir /home/szp/work/calibration/cam0 failed\n",__func__);
+    }
+
+    ret = mkdir("/home/szp/work/calibration/cam0/data",0755);
+    if(ret != 0)
+    {
+        fprintf(stderr, "%s: mkdir /home/szp/work/calibration/cam0/data failed\n",__func__);
+    }
+
+    fp = fopen("/home/szp/work/calibration/imu0/imu0.csv", "w+");
     if(fp == NULL)
     {
         fprintf(stderr, "%s: Could not open imu_data file\n",__func__);
-		return -1;
+        return -1;
     }
-
     snprintf(temp_data,149,"#timestamp [ns],w_RS_S_x [rad s^-1],w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],a_RS_S_z [m s^-2]\n");
-
     fwrite(temp_data, strlen(temp_data) , 1, fp);
-
     fclose(fp);
 
-
     memset(temp_data,0,150);
-    fp = fopen("/home/szp/work/calibration/cam0/data.csv", "a+");
+    fp = fopen("/home/szp/work/calibration/cam0/data.csv", "w+");
     if(fp == NULL)
     {
         fprintf(stderr, "%s: Could not open time_stamp file\n",__func__);
-		return -1;
+        return -1;
     }
-
     snprintf(temp_data,149,"#timestamp [ns],filename\n");
-
     fwrite(temp_data, strlen(temp_data) , 1, fp);
-
     fclose(fp);
 
+    fp = fopen("/home/szp/work/calibration/cam0/time_stamp.txt", "w+");
+    if(fp == NULL)
+    {
+        fprintf(stderr, "%s: Could not open time_stamp file\n",__func__);
+        return -1;
+    }
+    fclose(fp);
 
     monocular_sdk_init(argc, argv);
 

@@ -3,12 +3,16 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <jpeglib.h>
-#include <png.h>
+// #include <jpeglib.h>
+// #include <png.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
 #include "cmd_parse.h"
 #include "cssc132.h"
-#include "led.h"
 #include "ui3240.h"
+#include "m3st130h.h"
+#include "led.h"
 #include "net.h"
 #include "sync.h"
 #include "handler.h"
@@ -462,6 +466,88 @@ struct timespec ns_to_tm(long long ns)
 	return tm;
 }
 
+//判断是否为目录
+static bool is_dir(const char *path)
+{
+
+	struct stat statbuf;
+
+	if(lstat(path, &statbuf) ==0)//lstat返回文件的信息，文件信息存放在stat结构中
+	{
+		return S_ISDIR(statbuf.st_mode) != 0;//S_ISDIR宏，判断文件类型是否为目录
+	}
+
+	return false;
+}
+
+//判断是否为常规文件
+static bool is_file(const char *path)
+{
+	struct stat statbuf;
+
+	if(lstat(path, &statbuf) ==0)
+	{
+		return S_ISREG(statbuf.st_mode) != 0;//判断文件是否为常规文件
+	}
+
+	return false;
+}
+
+//判断是否是特殊目录
+static bool is_special_dir(const char *path)
+{
+	return strcmp(path, ".") == 0 || strcmp(path, "..") == 0;
+}
+
+//生成完整的文件路径
+static void get_file_path(const char *path, const char *file_name,  char *file_path)
+{
+	strcpy(file_path, path);
+
+	if(file_path[strlen(path) - 1] != '/')
+	{
+		strcat(file_path, "/");
+	}
+
+	strcat(file_path, file_name);
+}
+
+void delete_file(const char *path)
+{
+	DIR *dir;
+	struct dirent *dir_info;
+	char file_path[PATH_MAX];
+
+	if(is_file(path))
+	{
+		remove(path);
+
+		return;
+	}
+
+	if(is_dir(path))
+	{
+		if((dir = opendir(path)) == NULL)
+		{
+			return;
+		}
+
+		while((dir_info = readdir(dir)) != NULL)
+		{
+			get_file_path(path, dir_info->d_name, file_path);
+
+			if(is_special_dir(dir_info->d_name))
+			{
+				continue;
+			}
+
+			delete_file(file_path);
+
+			rmdir(file_path);
+		}
+	}
+}
+
 int queryEC20_IMEI(char *imei)
 {
 	int ret = 0;
@@ -620,6 +706,55 @@ int xQueueReceive(key_t queue_key,void **msg_from_queue,unsigned char block)
                                (((long)msg.mtext[7] <<  0) & 0x00000000000000FF));
 
 	return ret;
+}
+
+int recvCameraResetMsg(void)
+{
+    int ret = 0;
+    unsigned char *reset = NULL;
+
+    ret = xQueueReceive((key_t)KEY_CAMERA_RESET_MSG,(void **)&reset,0);
+    if(ret == -1)
+    {
+        return -1;
+    }
+
+    free(reset);
+    reset = NULL;
+
+    return ret;
+}
+
+int recvSync1HzSuccessMsg(void)
+{
+    int ret = 0;
+    char *success = NULL;
+
+    ret = xQueueReceive((key_t)KEY_SYNC_1HZ_SUCCESS_MSG,(void **)&success,0);
+    if(ret == -1)
+    {
+        return -1;
+    }
+
+    return ret;
+}
+
+void sendFrameRateMsgToThreadSync(double frame_rate)
+{
+    int ret = 0;
+    double *p_frame_rate = NULL;
+
+    p_frame_rate = (double *)malloc(sizeof(double));
+    if(p_frame_rate != NULL)
+    {
+        *p_frame_rate = frame_rate;
+
+        ret = xQueueSend((key_t)KEY_FRAME_RATE_MSG,p_frame_rate,MAX_QUEUE_MSG_NUM);
+        if(ret == -1)
+        {
+            fprintf(stderr, "%s: send cssc132 frame rate queue msg failed\n",__func__);
+        }
+    }
 }
 
 void clearSystemQueueMsg(void)
@@ -1436,7 +1571,7 @@ int convert_UYVY_To_GRAY(unsigned char *in_buf,
 * format -- image_buffer的格式,0:RGB格式;1:灰度格式
 * camera_type -- 0:ids灰度相机;1:cssc132
 */
-int imageBufCompressToJpeg(char *file_name,
+/* int imageBufCompressToJpeg(char *file_name,
                            int quality,
                            struct ImageBuffer *image,
                            unsigned char format,
@@ -1445,9 +1580,9 @@ int imageBufCompressToJpeg(char *file_name,
     int ret = 0;
     struct jpeg_compress_struct com_cinfo;
     struct jpeg_error_mgr com_jerr;
-    FILE * outfile;      /* target file */
-    JSAMPROW row_pointer[1];  /* pointer to JSAMPLE row[s] 一行位图 */
-    int row_stride;      /* physical row width in image buffer */
+    FILE * outfile;      // target file
+    JSAMPROW row_pointer[1];  // pointer to JSAMPLE row[s] 一行位图
+    int row_stride;      // physical row width in image buffer
     unsigned char *rgb_buf = NULL;
 
 	if(format == 0)
@@ -1546,7 +1681,7 @@ int imageBufCompressToJpeg(char *file_name,
     jpeg_destroy_compress(&com_cinfo);
 
     return ret;
-}
+} */
 
 /*
 * 将图片压缩为jpeg格式
@@ -1554,7 +1689,7 @@ int imageBufCompressToJpeg(char *file_name,
 * image_buffer -- RGB或灰度数据
 * format -- image_buffer的格式,0:RGB格式;1:灰度格式
 */
-int imageBufCompressToPng(char *file_name,
+/* int imageBufCompressToPng(char *file_name,
 						   struct ImageBuffer *image,
 						   unsigned char format)
 {
@@ -1662,7 +1797,7 @@ error1:
 	png_destroy_write_struct(&png_ptr, &info_ptr);
 error0:
 	return ret;
-}
+} */
 
 /*
 * 将图片压缩为jpeg格式
@@ -1775,6 +1910,7 @@ static int pthreadCreate(void *args)
     static pthread_t tid_mpu9250 = 0;
     static pthread_t tid_ui3240 = 0;
     static pthread_t tid_cssc132 = 0;
+	static pthread_t tid_m3st130h = 0;
     static pthread_t tid_sync_module = 0;
     static pthread_t tid_sync = 0;
     static pthread_t tid_led = 0;
@@ -1804,22 +1940,36 @@ static int pthreadCreate(void *args)
         fprintf(stderr, "%s: create thread_mpu9250 failed\n",__func__);
     }
 
-    if(cmdArgs.camera_module == 0)
-    {
-        ret = pthread_create(&tid_ui3240,NULL,thread_ui3240,&cmdArgs);
-        if(0 != ret)
-        {
-            fprintf(stderr, "%s: create thread_ui3240 failed\n",__func__);
-        }
-    }
-    else
-    {
-        ret = pthread_create(&tid_cssc132,NULL,thread_cssc132,&cmdArgs);
-        if(0 != ret)
-        {
-            fprintf(stderr, "%s: create thread_cssc132 failed\n",__func__);
-        }
-    }
+	switch(cmdArgs.camera_module)
+	{
+		case 0:
+			ret = pthread_create(&tid_ui3240,NULL,thread_ui3240,&cmdArgs);
+			if(0 != ret)
+			{
+				fprintf(stderr, "%s: create thread_ui3240 failed\n",__func__);
+			}
+		break;
+
+		case 1:
+			ret = pthread_create(&tid_cssc132,NULL,thread_cssc132,&cmdArgs);
+			if(0 != ret)
+			{
+				fprintf(stderr, "%s: create thread_cssc132 failed\n",__func__);
+			}
+		break;
+
+		case 2:
+			ret = pthread_create(&tid_m3st130h,NULL,thread_m3st130h,&cmdArgs);
+			if(0 != ret)
+			{
+				fprintf(stderr, "%s: create thread_m3st130h failed\n",__func__);
+			}
+		break;
+
+		default:
+
+		break;
+	}
 
     ret = pthread_create(&tid_sync_module,NULL,thread_sync_module,&cmdArgs);
     if(0 != ret)
